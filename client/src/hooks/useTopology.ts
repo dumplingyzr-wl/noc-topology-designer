@@ -573,7 +573,7 @@ export function useTopology() {
         const currentNode = nodes[currentNodeIndex];
 
         // Calculate connections based on butterfly pattern
-        const digitPosition = stages - 1 - stage;
+        const digitPosition = stages - 2 - stage;
         const stride = Math.pow(radix, digitPosition);
         const groupStart = Math.floor(sw / (stride * radix)) * (stride * radix);
         const posInGroup = sw % stride;
