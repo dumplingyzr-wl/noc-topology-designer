@@ -6,12 +6,15 @@
 // Port direction for NoC router
 export type PortDirection = 'north' | 'south' | 'east' | 'west' | 'local';
 
+export type PortIOType = 'input' | 'output';
+
 // Port definition
 export interface Port {
   id: string;
   direction: PortDirection;
   index: number; // Index within the direction (for multiple ports per direction)
   label?: string;
+  ioType?: PortIOType;
 }
 
 // Router node in the topology
@@ -28,6 +31,7 @@ export interface RouterNode {
   meshY?: number;
   // Custom styling
   color?: string;
+  textColor?: string;
 }
 
 // Connection between two ports
@@ -128,6 +132,19 @@ export const CONNECTION_COLORS = {
   custom: '#10b981',    // Emerald
 };
 
+export const PORT_IO_TYPE_BY_DIRECTION: Record<PortDirection, PortIOType> = {
+  north: 'input',
+  west: 'input',
+  local: 'input',
+  south: 'output',
+  east: 'output',
+};
+
+export const PORT_IO_COLORS: Record<PortIOType, string> = {
+  input: '#38bdf8',   // Bright blue
+  output: '#f97316',  // Strong orange
+};
+
 // Port direction colors
 export const PORT_DIRECTION_COLORS: Record<PortDirection, string> = {
   north: '#60a5fa',     // Blue (cool - vertical)
@@ -136,3 +153,15 @@ export const PORT_DIRECTION_COLORS: Record<PortDirection, string> = {
   west: '#fb923c',      // Light orange (warm - horizontal)
   local: '#a78bfa',     // Purple (special)
 };
+
+export const ROUTER_THEME_PRESETS = [
+  { fill: '#252525', text: '#f8fafc', name: 'Dark' },
+  { fill: '#dae8fc', text: '#1f2937', name: 'Light Blue' },
+  { fill: '#d5e8d4', text: '#1f2937', name: 'Light Green' },
+  { fill: '#fff2cc', text: '#1f2937', name: 'Light Yellow' },
+  { fill: '#f8cecc', text: '#1f2937', name: 'Light Red' },
+  { fill: '#e1d5e7', text: '#1f2937', name: 'Light Purple' },
+  { fill: '#ffe6cc', text: '#1f2937', name: 'Light Orange' },
+  { fill: '#cfe2f3', text: '#1f2937', name: 'Soft Blue' },
+  { fill: '#1f2937', text: '#f9fafb', name: 'Slate' },
+];

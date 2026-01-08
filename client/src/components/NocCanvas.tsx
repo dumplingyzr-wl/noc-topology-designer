@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { RouterNode, Connection, ViewportState, ToolMode, CanvasSettings, PortDirection, PORT_DIRECTION_COLORS, CONNECTION_COLORS } from '@/types/noc';
+import { RouterNode, Connection, ViewportState, ToolMode, CanvasSettings, PortDirection, PORT_IO_COLORS, PORT_IO_TYPE_BY_DIRECTION, CONNECTION_COLORS } from '@/types/noc';
 import { generateBezierPath, generateOrthogonalPath, generateStraightPath, bundleConnections } from '@/lib/routing';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +24,8 @@ interface NocCanvasProps {
   onViewportChange: (viewport: Partial<ViewportState>) => void;
   onNodeMove: (nodeId: string, x: number, y: number) => void;
   onNodeMoveEnd: () => void;
+  onNodeResize: (nodeId: string, width: number, height: number) => void;
+  onNodeResizeEnd: () => void;
   onNodeSelect: (nodeId: string, addToSelection: boolean) => void;
   onConnectionSelect: (connectionId: string, addToSelection: boolean) => void;
   onPortClick: (nodeId: string, portId: string) => void;
@@ -142,6 +144,8 @@ export function NocCanvas({
   onViewportChange,
   onNodeMove,
   onNodeMoveEnd,
+  onNodeResize,
+  onNodeResizeEnd,
   onNodeSelect,
   onConnectionSelect,
   onPortClick,
@@ -154,9 +158,18 @@ export function NocCanvas({
   const [isDragging, setIsDragging] = useState(false);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [resizeNodeId, setResizeNodeId] = useState<string | null>(null);
+  const [resizeOrigin, setResizeOrigin] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hoveredPort, setHoveredPort] = useState<{ nodeId: string; portId: string } | null>(null);
+  const connectingPortType = useMemo(() => {
+    if (!connectingPort) return null;
+    const node = nodes.find(item => item.id === connectingPort.nodeId);
+    const port = node?.ports.find(item => item.id === connectingPort.portId);
+    if (!port) return null;
+    return port.ioType ?? PORT_IO_TYPE_BY_DIRECTION[port.direction];
+  }, [connectingPort, nodes]);
 
   // Convert screen coordinates to canvas coordinates
   const screenToCanvas = useCallback((screenX: number, screenY: number) => {
@@ -232,8 +245,20 @@ export function NocCanvas({
       }
       
       onNodeMove(dragNodeId, newX, newY);
+    } else if (resizeNodeId) {
+      const deltaX = canvasPos.x - resizeOrigin.x;
+      const deltaY = canvasPos.y - resizeOrigin.y;
+      let nextWidth = resizeOrigin.width + deltaX;
+      let nextHeight = resizeOrigin.height + deltaY;
+      if (settings.snapToGrid) {
+        nextWidth = Math.round(nextWidth / settings.gridSize) * settings.gridSize;
+        nextHeight = Math.round(nextHeight / settings.gridSize) * settings.gridSize;
+      }
+      nextWidth = Math.max(40, nextWidth);
+      nextHeight = Math.max(40, nextHeight);
+      onNodeResize(resizeNodeId, nextWidth, nextHeight);
     }
-  }, [isPanning, isDragging, dragNodeId, dragOffset, panStart, screenToCanvas, settings, onViewportChange, onNodeMove]);
+  }, [isPanning, isDragging, dragNodeId, dragOffset, panStart, screenToCanvas, settings, onViewportChange, onNodeMove, resizeNodeId, resizeOrigin, onNodeResize]);
 
   // Handle mouse up
   const handleMouseUp = useCallback(() => {
@@ -245,7 +270,11 @@ export function NocCanvas({
       setDragNodeId(null);
       onNodeMoveEnd();
     }
-  }, [isPanning, isDragging, onNodeMoveEnd]);
+    if (resizeNodeId) {
+      setResizeNodeId(null);
+      onNodeResizeEnd();
+    }
+  }, [isPanning, isDragging, resizeNodeId, onNodeMoveEnd, onNodeResizeEnd]);
 
   // Handle node mouse down
   const handleNodeMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
@@ -261,6 +290,17 @@ export function NocCanvas({
     setDragNodeId(nodeId);
     
     onNodeSelect(nodeId, e.shiftKey || e.ctrlKey);
+  }, [toolMode, nodes, screenToCanvas, onNodeSelect]);
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
+    if (toolMode !== 'select') return;
+    e.stopPropagation();
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    const canvasPos = screenToCanvas(e.clientX, e.clientY);
+    setResizeOrigin({ x: canvasPos.x, y: canvasPos.y, width: node.width, height: node.height });
+    setResizeNodeId(nodeId);
+    onNodeSelect(nodeId, false);
   }, [toolMode, nodes, screenToCanvas, onNodeSelect]);
 
   // Handle port click
@@ -310,6 +350,15 @@ export function NocCanvas({
   const connectionBundles = useMemo(() => {
     return bundleConnections(connections, nodes);
   }, [connections, nodes]);
+
+  const connectedPortIds = useMemo(() => {
+    const connected = new Set<string>();
+    connections.forEach(conn => {
+      connected.add(conn.sourcePortId);
+      connected.add(conn.targetPortId);
+    });
+    return connected;
+  }, [connections]);
 
   // Render grid pattern
   const gridPattern = useMemo(() => {
@@ -577,7 +626,7 @@ export function NocCanvas({
                   y={node.y + node.height / 2 - 2}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill="#e5e5e5"
+                  fill={node.textColor || '#e5e5e5'}
                   fontSize={13}
                   fontFamily="'JetBrains Mono', monospace"
                   fontWeight={600}
@@ -586,28 +635,22 @@ export function NocCanvas({
                   {node.label}
                 </text>
                 
-                {/* Port count indicator */}
-                <text
-                  x={node.x + node.width / 2}
-                  y={node.y + node.height / 2 + 12}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fill="#666"
-                  fontSize={9}
-                  fontFamily="'Inter', sans-serif"
-                  pointerEvents="none"
-                >
-                  {node.ports.length} ports
-                </text>
-                
                 {/* Ports */}
                 {node.ports.map(port => {
                   const totalInDir = dirCounts?.get(port.direction) || 1;
                   const pos = getPortPosition(node, port, totalInDir);
-                  const color = PORT_DIRECTION_COLORS[port.direction];
+                  const portIoType = port.ioType ?? PORT_IO_TYPE_BY_DIRECTION[port.direction];
+                  const color = PORT_IO_COLORS[portIoType];
                   const isConnecting = connectingPort?.nodeId === node.id && connectingPort?.portId === port.id;
                   const isHovered = hoveredPort?.nodeId === node.id && hoveredPort?.portId === port.id;
-                  const canConnect = connectingPort && connectingPort.nodeId !== node.id;
+                  const isConnected = connectedPortIds.has(port.id);
+                  const canConnect = Boolean(
+                    connectingPort &&
+                    connectingPort.nodeId !== node.id &&
+                    connectingPortType &&
+                    connectingPortType !== portIoType &&
+                    !isConnected
+                  );
                   
                   return (
                     <g 
@@ -679,6 +722,25 @@ export function NocCanvas({
                     </g>
                   );
                 })}
+
+                {/* Resize handle */}
+                {toolMode === 'select' && (
+                  <g
+                    onMouseDown={(e) => handleResizeMouseDown(e, node.id)}
+                    style={{ cursor: 'nwse-resize' }}
+                  >
+                    <rect
+                      x={node.x + node.width - 10}
+                      y={node.y + node.height - 10}
+                      width={10}
+                      height={10}
+                      fill="rgba(34,211,238,0.9)"
+                      stroke="#0ea5e9"
+                      strokeWidth={1}
+                      rx={2}
+                    />
+                  </g>
+                )}
               </g>
             );
           })}

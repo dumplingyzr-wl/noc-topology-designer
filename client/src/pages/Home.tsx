@@ -18,7 +18,7 @@ import { ButterflyDialog } from '@/components/ButterflyDialog';
 import { AddRouterDialog } from '@/components/AddRouterDialog';
 import { Minimap } from '@/components/Minimap';
 import { HelpPanel } from '@/components/HelpPanel';
-import { PortConfig, DEFAULT_PORT_CONFIG } from '@/types/noc';
+import { PortConfig, DEFAULT_PORT_CONFIG, PORT_IO_TYPE_BY_DIRECTION, RouterNode } from '@/types/noc';
 import { toast } from 'sonner';
 import { PanelRightClose, PanelRightOpen, Network, HelpCircle, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -47,14 +47,18 @@ export default function Home() {
     undo,
     redo,
     addNode,
+    duplicateNode,
     updateNodePosition,
+    updateNodeSize,
     finalizeNodePosition,
+    finalizeNodeSize,
     updateNode,
     deleteNode,
     addPort,
     removePort,
     addConnection,
     deleteConnection,
+    removeConnectionsForPort,
     updateViewport,
     setSelection,
     clearSelection,
@@ -80,6 +84,7 @@ export default function Home() {
   const [pendingRouterPosition, setPendingRouterPosition] = useState({ x: 0, y: 0 });
   const [connectingPort, setConnectingPort] = useState<{ nodeId: string; portId: string } | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
+  const [copiedNode, setCopiedNode] = useState<RouterNode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
@@ -100,10 +105,51 @@ export default function Home() {
   }, [showProperties]);
 
   // Keyboard shortcuts
+  const getPortIoType = useCallback((nodeId: string, portId: string) => {
+    const node = nodes.find(item => item.id === nodeId);
+    const port = node?.ports.find(item => item.id === portId);
+    if (!port) return null;
+    return port.ioType ?? PORT_IO_TYPE_BY_DIRECTION[port.direction];
+  }, [nodes]);
+
+  const getUniqueLabel = useCallback((baseLabel: string) => {
+    const existing = new Set(nodes.map(node => node.label));
+    let candidate = `${baseLabel}-copy`;
+    if (!existing.has(candidate)) {
+      return candidate;
+    }
+    let index = 2;
+    while (existing.has(`${baseLabel}-copy-${index}`)) {
+      index += 1;
+    }
+    return `${baseLabel}-copy-${index}`;
+  }, [nodes]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in input
       if ((e.target as HTMLElement).tagName === 'INPUT') return;
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        if (selection.selectedNodes.length === 1) {
+          const node = nodes.find(item => item.id === selection.selectedNodes[0]);
+          if (node) {
+            setCopiedNode(node);
+            toast.success('Router copied');
+          }
+        }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        if (copiedNode) {
+          const label = getUniqueLabel(copiedNode.label);
+          duplicateNode(copiedNode, copiedNode.x + 40, copiedNode.y + 40, label);
+          toast.success(`Router "${label}" pasted`);
+        }
+        return;
+      }
 
       if (e.key === 'v' || e.key === 'V') {
         setToolMode('select');
@@ -137,7 +183,7 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setToolMode, selection, deleteSelected, clearSelection, undo, redo]);
+  }, [setToolMode, selection, deleteSelected, clearSelection, undo, redo, nodes, copiedNode, duplicateNode, getUniqueLabel]);
 
   // Handle node selection
   const handleNodeSelect = useCallback((nodeId: string, addToSelection: boolean) => {
@@ -176,27 +222,96 @@ export default function Home() {
   }, [selection.selectedConnections, setSelection]);
 
   // Handle port click for connections
+  const getConnectionForPort = useCallback((portId: string) => (
+    connections.find(conn => conn.sourcePortId === portId || conn.targetPortId === portId) || null
+  ), [connections]);
+
+  const getOppositePort = useCallback((connectionId: string, portId: string) => {
+    const connection = connections.find(conn => conn.id === connectionId);
+    if (!connection) return null;
+    if (connection.sourcePortId === portId) {
+      return { nodeId: connection.targetNodeId, portId: connection.targetPortId };
+    }
+    if (connection.targetPortId === portId) {
+      return { nodeId: connection.sourceNodeId, portId: connection.sourcePortId };
+    }
+    return null;
+  }, [connections]);
+
   const handlePortClick = useCallback((nodeId: string, portId: string) => {
     if (toolMode === 'connect' || toolMode === 'select') {
+      const existingConnection = getConnectionForPort(portId);
+      const oppositePort = existingConnection ? getOppositePort(existingConnection.id, portId) : null;
       if (!connectingPort) {
         // Start connection
-        setConnectingPort({ nodeId, portId });
-        toast.info('Click another port to complete the connection');
+        if (existingConnection) {
+          removeConnectionsForPort(portId);
+          if (oppositePort) {
+            setConnectingPort(oppositePort);
+          } else {
+            setConnectingPort({ nodeId, portId });
+          }
+          toast.info('Connection removed. Select another port to reconnect.');
+        } else {
+          setConnectingPort({ nodeId, portId });
+          toast.info('Click another port to complete the connection');
+        }
       } else {
+        if (connectingPort.nodeId === nodeId && connectingPort.portId === portId) {
+          setConnectingPort(null);
+          return;
+        }
+        if (existingConnection) {
+          removeConnectionsForPort(portId);
+          if (oppositePort) {
+            setConnectingPort(oppositePort);
+          } else {
+            setConnectingPort({ nodeId, portId });
+          }
+          toast.info('Connection removed. Select another port to reconnect.');
+          return;
+        }
+        const sourceType = getPortIoType(connectingPort.nodeId, connectingPort.portId);
+        const targetType = getPortIoType(nodeId, portId);
+        if (!sourceType || !targetType) {
+          setConnectingPort(null);
+          return;
+        }
+        if (sourceType === targetType) {
+          toast.error('Connections must be between input and output ports');
+          return;
+        }
         // Complete connection
         if (connectingPort.nodeId !== nodeId) {
-          addConnection(
-            connectingPort.nodeId,
-            connectingPort.portId,
-            nodeId,
-            portId
-          );
+          if (sourceType === 'input' && targetType === 'output') {
+            addConnection(
+              nodeId,
+              portId,
+              connectingPort.nodeId,
+              connectingPort.portId
+            );
+          } else {
+            addConnection(
+              connectingPort.nodeId,
+              connectingPort.portId,
+              nodeId,
+              portId
+            );
+          }
           toast.success('Connection created');
         }
         setConnectingPort(null);
       }
     }
-  }, [toolMode, connectingPort, addConnection]);
+  }, [
+    toolMode,
+    connectingPort,
+    addConnection,
+    getPortIoType,
+    getConnectionForPort,
+    getOppositePort,
+    removeConnectionsForPort,
+  ]);
 
   // Handle canvas click
   const handleCanvasClick = useCallback(() => {
@@ -443,6 +558,8 @@ export default function Home() {
             onViewportChange={updateViewport}
             onNodeMove={updateNodePosition}
             onNodeMoveEnd={finalizeNodePosition}
+            onNodeResize={updateNodeSize}
+            onNodeResizeEnd={finalizeNodeSize}
             onNodeSelect={handleNodeSelect}
             onConnectionSelect={handleConnectionSelect}
             onPortClick={handlePortClick}
