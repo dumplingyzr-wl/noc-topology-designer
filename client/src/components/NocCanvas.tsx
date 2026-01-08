@@ -248,8 +248,14 @@ export function NocCanvas({
     } else if (resizeNodeId) {
       const deltaX = canvasPos.x - resizeOrigin.x;
       const deltaY = canvasPos.y - resizeOrigin.y;
-      const nextWidth = Math.max(40, resizeOrigin.width + deltaX);
-      const nextHeight = Math.max(40, resizeOrigin.height + deltaY);
+      let nextWidth = resizeOrigin.width + deltaX;
+      let nextHeight = resizeOrigin.height + deltaY;
+      if (settings.snapToGrid) {
+        nextWidth = Math.round(nextWidth / settings.gridSize) * settings.gridSize;
+        nextHeight = Math.round(nextHeight / settings.gridSize) * settings.gridSize;
+      }
+      nextWidth = Math.max(40, nextWidth);
+      nextHeight = Math.max(40, nextHeight);
       onNodeResize(resizeNodeId, nextWidth, nextHeight);
     }
   }, [isPanning, isDragging, dragNodeId, dragOffset, panStart, screenToCanvas, settings, onViewportChange, onNodeMove, resizeNodeId, resizeOrigin, onNodeResize]);
