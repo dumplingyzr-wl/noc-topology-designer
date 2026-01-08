@@ -577,6 +577,7 @@ export function useTopology() {
         const stride = Math.pow(radix, digitPosition);
         const groupStart = Math.floor(sw / (stride * radix)) * (stride * radix);
         const posInGroup = sw % stride;
+        const currentDigit = Math.floor(sw / stride) % radix;
 
         for (let k = 0; k < radix; k++) {
           const targetSw = groupStart + k * stride + posInGroup;
@@ -585,7 +586,7 @@ export function useTopology() {
 
           if (targetNode) {
             const sourcePort = currentNode.ports.filter(p => p.direction === 'east')[k];
-            const targetPort = targetNode.ports.filter(p => p.direction === 'west')[k];
+            const targetPort = targetNode.ports.filter(p => p.direction === 'west')[currentDigit];
 
             if (sourcePort && targetPort) {
               connections.push({
