@@ -351,6 +351,15 @@ export function NocCanvas({
     return bundleConnections(connections, nodes);
   }, [connections, nodes]);
 
+  const connectedPortIds = useMemo(() => {
+    const connected = new Set<string>();
+    connections.forEach(conn => {
+      connected.add(conn.sourcePortId);
+      connected.add(conn.targetPortId);
+    });
+    return connected;
+  }, [connections]);
+
   // Render grid pattern
   const gridPattern = useMemo(() => {
     if (!settings.showGrid) return null;
@@ -634,11 +643,13 @@ export function NocCanvas({
                   const color = PORT_IO_COLORS[portIoType];
                   const isConnecting = connectingPort?.nodeId === node.id && connectingPort?.portId === port.id;
                   const isHovered = hoveredPort?.nodeId === node.id && hoveredPort?.portId === port.id;
+                  const isConnected = connectedPortIds.has(port.id);
                   const canConnect = Boolean(
                     connectingPort &&
                     connectingPort.nodeId !== node.id &&
                     connectingPortType &&
-                    connectingPortType !== portIoType
+                    connectingPortType !== portIoType &&
+                    !isConnected
                   );
                   
                   return (

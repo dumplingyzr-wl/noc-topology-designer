@@ -58,6 +58,7 @@ export default function Home() {
     removePort,
     addConnection,
     deleteConnection,
+    removeConnectionsForPort,
     updateViewport,
     setSelection,
     clearSelection,
@@ -221,15 +222,32 @@ export default function Home() {
   }, [selection.selectedConnections, setSelection]);
 
   // Handle port click for connections
+  const getConnectionForPort = useCallback((portId: string) => (
+    connections.find(conn => conn.sourcePortId === portId || conn.targetPortId === portId) || null
+  ), [connections]);
+
   const handlePortClick = useCallback((nodeId: string, portId: string) => {
     if (toolMode === 'connect' || toolMode === 'select') {
+      const existingConnection = getConnectionForPort(portId);
       if (!connectingPort) {
         // Start connection
-        setConnectingPort({ nodeId, portId });
-        toast.info('Click another port to complete the connection');
+        if (existingConnection) {
+          removeConnectionsForPort(portId);
+          setConnectingPort({ nodeId, portId });
+          toast.info('Connection removed. Select another port to reconnect.');
+        } else {
+          setConnectingPort({ nodeId, portId });
+          toast.info('Click another port to complete the connection');
+        }
       } else {
         if (connectingPort.nodeId === nodeId && connectingPort.portId === portId) {
           setConnectingPort(null);
+          return;
+        }
+        if (existingConnection) {
+          removeConnectionsForPort(portId);
+          setConnectingPort({ nodeId, portId });
+          toast.info('Connection removed. Select another port to reconnect.');
           return;
         }
         const sourceType = getPortIoType(connectingPort.nodeId, connectingPort.portId);
@@ -264,7 +282,7 @@ export default function Home() {
         setConnectingPort(null);
       }
     }
-  }, [toolMode, connectingPort, addConnection, getPortIoType]);
+  }, [toolMode, connectingPort, addConnection, getPortIoType, getConnectionForPort, removeConnectionsForPort]);
 
   // Handle canvas click
   const handleCanvasClick = useCallback(() => {

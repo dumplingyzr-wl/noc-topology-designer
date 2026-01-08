@@ -315,6 +315,16 @@ export function useTopology() {
     type?: Connection['type']
   ) => {
     setState(prev => {
+      const portInUse = prev.connections.some(
+        conn =>
+          conn.sourcePortId === sourcePortId ||
+          conn.targetPortId === sourcePortId ||
+          conn.sourcePortId === targetPortId ||
+          conn.targetPortId === targetPortId
+      );
+      if (portInUse) {
+        return prev;
+      }
       const sourceNode = prev.nodes.find(node => node.id === sourceNodeId);
       const targetNode = prev.nodes.find(node => node.id === targetNodeId);
       const sourcePort = sourceNode?.ports.find(port => port.id === sourcePortId);
@@ -351,6 +361,30 @@ export function useTopology() {
       const newState = {
         ...prev,
         connections: [...prev.connections, connection],
+      };
+      saveToHistory(newState);
+      return newState;
+    });
+  }, [saveToHistory]);
+
+  const removeConnectionsForPort = useCallback((portId: string) => {
+    setState(prev => {
+      const remainingConnections = prev.connections.filter(
+        conn => conn.sourcePortId !== portId && conn.targetPortId !== portId
+      );
+      if (remainingConnections.length === prev.connections.length) {
+        return prev;
+      }
+      const selection = {
+        ...prev.selection,
+        selectedConnections: prev.selection.selectedConnections.filter(id =>
+          remainingConnections.some(conn => conn.id === id)
+        ),
+      };
+      const newState = {
+        ...prev,
+        connections: remainingConnections,
+        selection,
       };
       saveToHistory(newState);
       return newState;
@@ -852,6 +886,7 @@ export function useTopology() {
     // Connection operations
     addConnection,
     deleteConnection,
+    removeConnectionsForPort,
     
     // Viewport operations
     updateViewport,
