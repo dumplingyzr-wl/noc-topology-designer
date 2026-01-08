@@ -34,19 +34,23 @@ function getControlPointOffset(direction: PortDirection, distance: number): Poin
 // Generate smooth bezier curve path
 export function generateBezierPath(
   source: PortPosition,
-  target: PortPosition
+  target: PortPosition,
+  bundleOffset: number = 0
 ): string {
   const dx = target.x - source.x;
   const dy = target.y - source.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const px = len === 0 ? 0 : -dy / len;
+  const py = len === 0 ? 0 : dx / len;
   
   const sourceOffset = getControlPointOffset(source.direction, distance);
   const targetOffset = getControlPointOffset(target.direction, distance);
   
-  const cx1 = source.x + sourceOffset.x;
-  const cy1 = source.y + sourceOffset.y;
-  const cx2 = target.x + targetOffset.x;
-  const cy2 = target.y + targetOffset.y;
+  const cx1 = source.x + sourceOffset.x + px * bundleOffset;
+  const cy1 = source.y + sourceOffset.y + py * bundleOffset;
+  const cx2 = target.x + targetOffset.x + px * bundleOffset;
+  const cy2 = target.y + targetOffset.y + py * bundleOffset;
   
   return `M ${source.x} ${source.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${target.x} ${target.y}`;
 }
@@ -56,10 +60,16 @@ export function generateOrthogonalPath(
   source: PortPosition,
   target: PortPosition,
   nodes: RouterNode[],
-  existingPaths: string[]
+  existingPaths: string[],
+  bundleOffset: number = 0
 ): string {
   const margin = 20;
   const cornerRadius = 8;
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const px = len === 0 ? 0 : -dy / len;
+  const py = len === 0 ? 0 : dx / len;
   
   // Simple orthogonal routing based on port directions
   const points: Point[] = [{ x: source.x, y: source.y }];
@@ -77,6 +87,15 @@ export function generateOrthogonalPath(
   
   points.push(targetExtend);
   points.push({ x: target.x, y: target.y });
+
+  if (bundleOffset !== 0) {
+    for (let i = 1; i < points.length - 1; i++) {
+      points[i] = {
+        x: points[i].x + px * bundleOffset,
+        y: points[i].y + py * bundleOffset,
+      };
+    }
+  }
   
   // Generate path with rounded corners
   return generateRoundedPath(points, cornerRadius);
@@ -171,8 +190,26 @@ function generateRoundedPath(points: Point[], radius: number): string {
 }
 
 // Generate straight line path
-export function generateStraightPath(source: PortPosition, target: PortPosition): string {
-  return `M ${source.x} ${source.y} L ${target.x} ${target.y}`;
+export function generateStraightPath(
+  source: PortPosition,
+  target: PortPosition,
+  bundleOffset: number = 0
+): string {
+  if (bundleOffset === 0) {
+    return `M ${source.x} ${source.y} L ${target.x} ${target.y}`;
+  }
+
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return '';
+
+  const px = -dy / len;
+  const py = dx / len;
+  const midX = (source.x + target.x) / 2 + px * bundleOffset;
+  const midY = (source.y + target.y) / 2 + py * bundleOffset;
+
+  return `M ${source.x} ${source.y} Q ${midX} ${midY}, ${target.x} ${target.y}`;
 }
 
 // Calculate optimal port positions to minimize crossings
