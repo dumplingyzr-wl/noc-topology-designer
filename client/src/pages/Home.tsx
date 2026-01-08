@@ -84,7 +84,7 @@ export default function Home() {
   const [pendingRouterPosition, setPendingRouterPosition] = useState({ x: 0, y: 0 });
   const [connectingPort, setConnectingPort] = useState<{ nodeId: string; portId: string } | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
-  const [copiedNode, setCopiedNode] = useState<RouterNode | null>(null);
+  const [copiedNodes, setCopiedNodes] = useState<RouterNode[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
@@ -131,11 +131,15 @@ export default function Home() {
       if ((e.target as HTMLElement).tagName === 'INPUT') return;
 
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
-        if (selection.selectedNodes.length === 1) {
-          const node = nodes.find(item => item.id === selection.selectedNodes[0]);
-          if (node) {
-            setCopiedNode(node);
-            toast.success('Router copied');
+        if (selection.selectedNodes.length > 0) {
+          const selected = nodes.filter(item => selection.selectedNodes.includes(item.id));
+          if (selected.length > 0) {
+            setCopiedNodes(selected);
+            toast.success(
+              selected.length > 1
+                ? `${selected.length} routers copied`
+                : 'Router copied'
+            );
           }
         }
         return;
@@ -143,10 +147,25 @@ export default function Home() {
 
       if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
         e.preventDefault();
-        if (copiedNode) {
-          const label = getUniqueLabel(copiedNode.label);
-          duplicateNode(copiedNode, copiedNode.x + 40, copiedNode.y + 40, label);
-          toast.success(`Router "${label}" pasted`);
+        if (copiedNodes.length > 0) {
+          let firstLabel = '';
+          copiedNodes.forEach((node, index) => {
+            const label = getUniqueLabel(node.label);
+            if (index === 0) {
+              firstLabel = label;
+            }
+            duplicateNode(
+              node,
+              node.x + 40 + index * 10,
+              node.y + 40 + index * 10,
+              label
+            );
+          });
+          toast.success(
+            copiedNodes.length > 1
+              ? `${copiedNodes.length} routers pasted`
+              : `Router "${firstLabel}" pasted`
+          );
         }
         return;
       }
@@ -183,7 +202,7 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setToolMode, selection, deleteSelected, clearSelection, undo, redo, nodes, copiedNode, duplicateNode, getUniqueLabel]);
+  }, [setToolMode, selection, deleteSelected, clearSelection, undo, redo, nodes, copiedNodes, duplicateNode, getUniqueLabel]);
 
   // Handle node selection
   const handleNodeSelect = useCallback((nodeId: string, addToSelection: boolean) => {
