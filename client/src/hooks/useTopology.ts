@@ -18,6 +18,7 @@ import {
   DEFAULT_PORT_CONFIG,
   CanvasSettings,
   DEFAULT_CANVAS_SETTINGS,
+  PORT_IO_TYPE_BY_DIRECTION,
 } from '@/types/noc';
 import { buildDrawioXml } from '@/lib/drawio';
 
@@ -35,6 +36,7 @@ function generatePorts(config: PortConfig): Port[] {
         direction,
         index: i,
         label: `${direction.charAt(0).toUpperCase()}${i}`,
+        ioType: PORT_IO_TYPE_BY_DIRECTION[direction],
       });
     }
   });
@@ -64,6 +66,7 @@ function normalizePorts(ports: Port[]): Port[] {
         ...port,
         index,
         label: `${direction.charAt(0).toUpperCase()}${index}`,
+        ioType: port.ioType ?? PORT_IO_TYPE_BY_DIRECTION[direction],
       });
     });
   });
@@ -204,6 +207,7 @@ export function useTopology() {
           direction,
           index: 0,
           label: '',
+          ioType: PORT_IO_TYPE_BY_DIRECTION[direction],
         };
         const ports = normalizePorts([...node.ports, newPort]);
         const portConfig = getPortConfigFromPorts(ports);
@@ -295,6 +299,19 @@ export function useTopology() {
     type?: Connection['type']
   ) => {
     setState(prev => {
+      const sourceNode = prev.nodes.find(node => node.id === sourceNodeId);
+      const targetNode = prev.nodes.find(node => node.id === targetNodeId);
+      const sourcePort = sourceNode?.ports.find(port => port.id === sourcePortId);
+      const targetPort = targetNode?.ports.find(port => port.id === targetPortId);
+      if (!sourcePort || !targetPort) {
+        return prev;
+      }
+      const sourceType = sourcePort.ioType ?? PORT_IO_TYPE_BY_DIRECTION[sourcePort.direction];
+      const targetType = targetPort.ioType ?? PORT_IO_TYPE_BY_DIRECTION[targetPort.direction];
+      if (sourceType === targetType) {
+        return prev;
+      }
+
       // Check if connection already exists
       const exists = prev.connections.some(
         conn =>
@@ -318,6 +335,27 @@ export function useTopology() {
       const newState = {
         ...prev,
         connections: [...prev.connections, connection],
+      };
+      saveToHistory(newState);
+      return newState;
+    });
+  }, [saveToHistory]);
+
+  const duplicateNode = useCallback((sourceNode: RouterNode, x: number, y: number, label: string) => {
+    setState(prev => {
+      const portConfig = getPortConfigFromPorts(sourceNode.ports);
+      const node = createRouterNode(x, y, label, portConfig);
+      const newState = {
+        ...prev,
+        nodes: [
+          ...prev.nodes,
+          {
+            ...node,
+            color: sourceNode.color,
+            width: sourceNode.width,
+            height: sourceNode.height,
+          },
+        ],
       };
       saveToHistory(newState);
       return newState;
@@ -437,9 +475,16 @@ export function useTopology() {
     try {
       const data = JSON.parse(json);
       if (data.nodes && data.connections) {
+        const normalizedNodes = data.nodes.map((node: RouterNode) => ({
+          ...node,
+          ports: node.ports.map(port => ({
+            ...port,
+            ioType: port.ioType ?? PORT_IO_TYPE_BY_DIRECTION[port.direction],
+          })),
+        }));
         const newState = {
           ...state,
-          nodes: data.nodes,
+          nodes: normalizedNodes,
           connections: data.connections,
           selection: { selectedNodes: [], selectedConnections: [], selectedPorts: [] },
         };
@@ -777,6 +822,7 @@ export function useTopology() {
     
     // Node operations
     addNode,
+    duplicateNode,
     updateNodePosition,
     finalizeNodePosition,
     updateNode,

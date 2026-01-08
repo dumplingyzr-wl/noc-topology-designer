@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RouterNode, Connection, PortConfig, CONNECTION_COLORS, PORT_DIRECTION_COLORS } from '@/types/noc';
+import { RouterNode, Connection, PortConfig, CONNECTION_COLORS, PORT_DIRECTION_COLORS, ROUTER_COLOR_PRESETS } from '@/types/noc';
 import { X, Router, Cable, Plus, Minus, Trash2 } from 'lucide-react';
 
 type PortConfigKey = keyof PortConfig;
@@ -46,6 +46,8 @@ export function PropertiesPanel({
   const [nodeLabel, setNodeLabel] = useState('');
   const [nodeX, setNodeX] = useState('');
   const [nodeY, setNodeY] = useState('');
+  const [nodeWidth, setNodeWidth] = useState('');
+  const [nodeHeight, setNodeHeight] = useState('');
   
   // Update form when selection changes
   useEffect(() => {
@@ -54,6 +56,8 @@ export function PropertiesPanel({
       setNodeLabel(node.label);
       setNodeX(String(Math.round(node.x)));
       setNodeY(String(Math.round(node.y)));
+      setNodeWidth(String(Math.round(node.width)));
+      setNodeHeight(String(Math.round(node.height)));
     }
   }, [selectedNodes]);
 
@@ -69,6 +73,19 @@ export function PropertiesPanel({
       const y = parseInt(nodeY);
       if (!isNaN(x) && !isNaN(y)) {
         onUpdateNode(selectedNodes[0].id, { x, y });
+      }
+    }
+  };
+
+  const handleNodeSizeChange = () => {
+    if (selectedNodes.length === 1) {
+      const width = parseInt(nodeWidth);
+      const height = parseInt(nodeHeight);
+      if (!isNaN(width) && !isNaN(height)) {
+        onUpdateNode(selectedNodes[0].id, {
+          width: Math.max(40, width),
+          height: Math.max(40, height),
+        });
       }
     }
   };
@@ -156,19 +173,53 @@ export function PropertiesPanel({
                     </div>
                   </div>
                   
-                  {/* Size (read-only) */}
+                  {/* Size */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Width</Label>
-                      <div className="h-8 px-3 flex items-center text-sm font-mono bg-secondary/50 rounded-md">
-                        {selectedNodes[0].width}
-                      </div>
+                      <Label className="text-xs">Width</Label>
+                      <Input
+                        type="number"
+                        value={nodeWidth}
+                        onChange={(e) => setNodeWidth(e.target.value)}
+                        onBlur={handleNodeSizeChange}
+                        onKeyDown={(e) => e.key === 'Enter' && handleNodeSizeChange()}
+                        className="h-8 text-sm font-mono"
+                      />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Height</Label>
-                      <div className="h-8 px-3 flex items-center text-sm font-mono bg-secondary/50 rounded-md">
-                        {selectedNodes[0].height}
-                      </div>
+                      <Label className="text-xs">Height</Label>
+                      <Input
+                        type="number"
+                        value={nodeHeight}
+                        onChange={(e) => setNodeHeight(e.target.value)}
+                        onBlur={handleNodeSizeChange}
+                        onKeyDown={(e) => e.key === 'Enter' && handleNodeSizeChange()}
+                        className="h-8 text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Color presets */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Color Presets</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {ROUTER_COLOR_PRESETS.map(color => (
+                        <button
+                          key={color}
+                          type="button"
+                          className="h-6 w-6 rounded-md border border-border shadow-sm"
+                          style={{ backgroundColor: color }}
+                          onClick={() => selectedNodes.forEach(node => onUpdateNode(node.id, { color }))}
+                          aria-label={`Set router color to ${color}`}
+                        />
+                      ))}
+                      <button
+                        type="button"
+                        className="h-6 px-2 rounded-md border border-border text-[10px] text-muted-foreground"
+                        onClick={() => selectedNodes.forEach(node => onUpdateNode(node.id, { color: undefined }))}
+                      >
+                        Reset
+                      </button>
                     </div>
                   </div>
                   

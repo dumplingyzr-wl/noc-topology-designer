@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { RouterNode, Connection, ViewportState, ToolMode, CanvasSettings, PortDirection, PORT_DIRECTION_COLORS, CONNECTION_COLORS } from '@/types/noc';
+import { RouterNode, Connection, ViewportState, ToolMode, CanvasSettings, PortDirection, PORT_IO_COLORS, PORT_IO_TYPE_BY_DIRECTION, CONNECTION_COLORS } from '@/types/noc';
 import { generateBezierPath, generateOrthogonalPath, generateStraightPath, bundleConnections } from '@/lib/routing';
 import { cn } from '@/lib/utils';
 
@@ -157,6 +157,13 @@ export function NocCanvas({
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hoveredPort, setHoveredPort] = useState<{ nodeId: string; portId: string } | null>(null);
+  const connectingPortType = useMemo(() => {
+    if (!connectingPort) return null;
+    const node = nodes.find(item => item.id === connectingPort.nodeId);
+    const port = node?.ports.find(item => item.id === connectingPort.portId);
+    if (!port) return null;
+    return port.ioType ?? PORT_IO_TYPE_BY_DIRECTION[port.direction];
+  }, [connectingPort, nodes]);
 
   // Convert screen coordinates to canvas coordinates
   const screenToCanvas = useCallback((screenX: number, screenY: number) => {
@@ -604,10 +611,16 @@ export function NocCanvas({
                 {node.ports.map(port => {
                   const totalInDir = dirCounts?.get(port.direction) || 1;
                   const pos = getPortPosition(node, port, totalInDir);
-                  const color = PORT_DIRECTION_COLORS[port.direction];
+                  const portIoType = port.ioType ?? PORT_IO_TYPE_BY_DIRECTION[port.direction];
+                  const color = PORT_IO_COLORS[portIoType];
                   const isConnecting = connectingPort?.nodeId === node.id && connectingPort?.portId === port.id;
                   const isHovered = hoveredPort?.nodeId === node.id && hoveredPort?.portId === port.id;
-                  const canConnect = connectingPort && connectingPort.nodeId !== node.id;
+                  const canConnect = Boolean(
+                    connectingPort &&
+                    connectingPort.nodeId !== node.id &&
+                    connectingPortType &&
+                    connectingPortType !== portIoType
+                  );
                   
                   return (
                     <g 
