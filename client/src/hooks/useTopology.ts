@@ -14,17 +14,19 @@ import {
   TopologyState,
   Port,
   PortConfig,
+  PortDirection,
   DEFAULT_PORT_CONFIG,
   CanvasSettings,
   DEFAULT_CANVAS_SETTINGS,
 } from '@/types/noc';
 
+const PORT_DIRECTIONS: PortDirection[] = ['north', 'south', 'east', 'west', 'local'];
+
 // Generate ports for a router based on configuration
 function generatePorts(config: PortConfig): Port[] {
   const ports: Port[] = [];
-  const directions: (keyof PortConfig)[] = ['north', 'south', 'east', 'west', 'local'];
   
-  directions.forEach(direction => {
+  PORT_DIRECTIONS.forEach(direction => {
     const count = config[direction];
     for (let i = 0; i < count; i++) {
       ports.push({
@@ -39,6 +41,45 @@ function generatePorts(config: PortConfig): Port[] {
   return ports;
 }
 
+function getPortConfigFromPorts(ports: Port[]): PortConfig {
+  return ports.reduce<PortConfig>((acc, port) => {
+    acc[port.direction] += 1;
+    return acc;
+  }, {
+    north: 0,
+    south: 0,
+    east: 0,
+    west: 0,
+    local: 0,
+  });
+}
+
+function normalizePorts(ports: Port[]): Port[] {
+  const normalized: Port[] = [];
+  PORT_DIRECTIONS.forEach(direction => {
+    const directionPorts = ports.filter(port => port.direction === direction);
+    directionPorts.forEach((port, index) => {
+      normalized.push({
+        ...port,
+        index,
+        label: `${direction.charAt(0).toUpperCase()}${index}`,
+      });
+    });
+  });
+  return normalized;
+}
+
+function calculateRouterSize(portConfig: PortConfig) {
+  const maxHorizontalPorts = Math.max(portConfig.north, portConfig.south);
+  const maxVerticalPorts = Math.max(portConfig.east, portConfig.west);
+  const localPorts = portConfig.local;
+
+  const width = Math.max(100, maxHorizontalPorts * 24 + 40);
+  const height = Math.max(80, maxVerticalPorts * 24 + 40, localPorts * 20 + 40);
+
+  return { width, height };
+}
+
 // Create a new router node
 function createRouterNode(
   x: number,
@@ -47,13 +88,7 @@ function createRouterNode(
   portConfig: PortConfig = DEFAULT_PORT_CONFIG
 ): RouterNode {
   const ports = generatePorts(portConfig);
-  // Calculate size based on port count
-  const maxHorizontalPorts = Math.max(portConfig.north, portConfig.south);
-  const maxVerticalPorts = Math.max(portConfig.east, portConfig.west);
-  const localPorts = portConfig.local;
-  
-  const width = Math.max(100, maxHorizontalPorts * 24 + 40);
-  const height = Math.max(80, maxVerticalPorts * 24 + 40, localPorts * 20 + 40);
+  const { width, height } = calculateRouterSize(portConfig);
   
   return {
     id: nanoid(8),
@@ -151,6 +186,80 @@ export function useTopology() {
         nodes: prev.nodes.map(node =>
           node.id === nodeId ? { ...node, ...updates } : node
         ),
+      };
+      saveToHistory(newState);
+      return newState;
+    });
+  }, [saveToHistory]);
+
+  const addPort = useCallback((nodeId: string, direction: PortDirection) => {
+    setState(prev => {
+      let didAdd = false;
+      const nodes = prev.nodes.map(node => {
+        if (node.id !== nodeId) return node;
+        didAdd = true;
+        const newPort: Port = {
+          id: nanoid(8),
+          direction,
+          index: 0,
+          label: '',
+        };
+        const ports = normalizePorts([...node.ports, newPort]);
+        const portConfig = getPortConfigFromPorts(ports);
+        const { width, height } = calculateRouterSize(portConfig);
+        return { ...node, ports, width, height };
+      });
+
+      if (!didAdd) {
+        return prev;
+      }
+
+      const newState = {
+        ...prev,
+        nodes,
+      };
+      saveToHistory(newState);
+      return newState;
+    });
+  }, [saveToHistory]);
+
+  const removePort = useCallback((nodeId: string, direction: PortDirection) => {
+    setState(prev => {
+      let didRemove = false;
+      let removedPortIds: string[] = [];
+      const nodes = prev.nodes.map(node => {
+        if (node.id !== nodeId) return node;
+        const directionPorts = node.ports.filter(port => port.direction === direction);
+        if (directionPorts.length === 0) return node;
+
+        const portToRemove = directionPorts[directionPorts.length - 1];
+        removedPortIds = [portToRemove.id];
+        didRemove = true;
+
+        const ports = normalizePorts(node.ports.filter(port => port.id !== portToRemove.id));
+        const portConfig = getPortConfigFromPorts(ports);
+        const { width, height } = calculateRouterSize(portConfig);
+        return { ...node, ports, width, height };
+      });
+
+      if (!didRemove) {
+        return prev;
+      }
+
+      const connections = prev.connections.filter(
+        conn => !removedPortIds.includes(conn.sourcePortId) && !removedPortIds.includes(conn.targetPortId)
+      );
+      const selection = {
+        ...prev.selection,
+        selectedPorts: prev.selection.selectedPorts.filter(
+          selected => !removedPortIds.includes(selected.portId)
+        ),
+      };
+      const newState = {
+        ...prev,
+        nodes,
+        connections,
+        selection,
       };
       saveToHistory(newState);
       return newState;
@@ -656,6 +765,8 @@ export function useTopology() {
     finalizeNodePosition,
     updateNode,
     deleteNode,
+    addPort,
+    removePort,
     
     // Connection operations
     addConnection,

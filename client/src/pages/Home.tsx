@@ -51,6 +51,8 @@ export default function Home() {
     finalizeNodePosition,
     updateNode,
     deleteNode,
+    addPort,
+    removePort,
     addConnection,
     deleteConnection,
     updateViewport,
@@ -481,6 +483,8 @@ export default function Home() {
             selectedConnections={selectedConnectionObjects}
             onUpdateNode={updateNode}
             onDeleteNode={deleteNode}
+            onAddPort={addPort}
+            onRemovePort={removePort}
             onDeleteConnection={deleteConnection}
             onClose={() => setShowProperties(false)}
           />

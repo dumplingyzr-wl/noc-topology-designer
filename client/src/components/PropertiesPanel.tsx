@@ -18,13 +18,16 @@ import {
 } from '@/components/ui/select';
 import { RouterNode, Connection, PortConfig, CONNECTION_COLORS, PORT_DIRECTION_COLORS } from '@/types/noc';
 import { X, Router, Cable, Plus, Minus, Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+
+type PortConfigKey = keyof PortConfig;
 
 interface PropertiesPanelProps {
   selectedNodes: RouterNode[];
   selectedConnections: Connection[];
   onUpdateNode: (nodeId: string, updates: Partial<RouterNode>) => void;
   onDeleteNode: (nodeId: string) => void;
+  onAddPort: (nodeId: string, direction: PortConfigKey) => void;
+  onRemovePort: (nodeId: string, direction: PortConfigKey) => void;
   onUpdateConnection?: (connectionId: string, updates: Partial<Connection>) => void;
   onDeleteConnection: (connectionId: string) => void;
   onClose: () => void;
@@ -35,6 +38,8 @@ export function PropertiesPanel({
   selectedConnections,
   onUpdateNode,
   onDeleteNode,
+  onAddPort,
+  onRemovePort,
   onDeleteConnection,
   onClose,
 }: PropertiesPanelProps) {
@@ -175,16 +180,36 @@ export function PropertiesPanel({
                     <div className="space-y-1">
                       {(['north', 'south', 'east', 'west', 'local'] as const).map(direction => {
                         const ports = selectedNodes[0].ports.filter(p => p.direction === direction);
-                        if (ports.length === 0) return null;
                         
                         return (
-                          <div key={direction} className="flex items-center gap-2 text-xs">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: PORT_DIRECTION_COLORS[direction] }}
-                            />
-                            <span className="capitalize text-muted-foreground w-12">{direction}</span>
-                            <span className="font-mono">{ports.length}</span>
+                          <div key={direction} className="flex items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: PORT_DIRECTION_COLORS[direction] }}
+                              />
+                              <span className="capitalize text-muted-foreground w-12">{direction}</span>
+                              <span className="font-mono">{ports.length}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => onRemovePort(selectedNodes[0].id, direction)}
+                                disabled={ports.length === 0}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => onAddPort(selectedNodes[0].id, direction)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                         );
                       })}
