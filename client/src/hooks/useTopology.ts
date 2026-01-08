@@ -573,20 +573,30 @@ export function useTopology() {
         const currentNode = nodes[currentNodeIndex];
 
         // Calculate connections based on butterfly pattern
-        const digitPosition = stages - 2 - stage;
-        const stride = Math.pow(radix, digitPosition);
-        const groupStart = Math.floor(sw / (stride * radix)) * (stride * radix);
-        const posInGroup = sw % stride;
-        const currentDigit = Math.floor(sw / stride) % radix;
+        const digits = new Array(stages - 1).fill(0);
+        let remainder = sw;
+        for (let i = stages - 2; i >= 0; i--) {
+          const place = Math.pow(radix, i);
+          digits[i] = Math.floor(remainder / place);
+          remainder %= place;
+        }
+
+        const position = stages - 2 - stage;
+        const incomingDigit = digits[position];
 
         for (let k = 0; k < radix; k++) {
-          const targetSw = groupStart + k * stride + posInGroup;
+          const nextDigits = [...digits];
+          nextDigits[position] = k;
+          const targetSw = nextDigits.reduce(
+            (acc, digit, idx) => acc + digit * Math.pow(radix, idx),
+            0
+          );
           const targetNodeIndex = (stage + 1) * switchesPerStage + targetSw;
           const targetNode = nodes[targetNodeIndex];
 
           if (targetNode) {
             const sourcePort = currentNode.ports.filter(p => p.direction === 'east')[k];
-            const targetPort = targetNode.ports.filter(p => p.direction === 'west')[currentDigit];
+            const targetPort = targetNode.ports.filter(p => p.direction === 'west')[incomingDigit];
 
             if (sourcePort && targetPort) {
               connections.push({
