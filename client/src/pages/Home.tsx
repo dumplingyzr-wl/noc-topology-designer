@@ -226,14 +226,31 @@ export default function Home() {
     connections.find(conn => conn.sourcePortId === portId || conn.targetPortId === portId) || null
   ), [connections]);
 
+  const getOppositePort = useCallback((connectionId: string, portId: string) => {
+    const connection = connections.find(conn => conn.id === connectionId);
+    if (!connection) return null;
+    if (connection.sourcePortId === portId) {
+      return { nodeId: connection.targetNodeId, portId: connection.targetPortId };
+    }
+    if (connection.targetPortId === portId) {
+      return { nodeId: connection.sourceNodeId, portId: connection.sourcePortId };
+    }
+    return null;
+  }, [connections]);
+
   const handlePortClick = useCallback((nodeId: string, portId: string) => {
     if (toolMode === 'connect' || toolMode === 'select') {
       const existingConnection = getConnectionForPort(portId);
+      const oppositePort = existingConnection ? getOppositePort(existingConnection.id, portId) : null;
       if (!connectingPort) {
         // Start connection
         if (existingConnection) {
           removeConnectionsForPort(portId);
-          setConnectingPort({ nodeId, portId });
+          if (oppositePort) {
+            setConnectingPort(oppositePort);
+          } else {
+            setConnectingPort({ nodeId, portId });
+          }
           toast.info('Connection removed. Select another port to reconnect.');
         } else {
           setConnectingPort({ nodeId, portId });
@@ -246,7 +263,11 @@ export default function Home() {
         }
         if (existingConnection) {
           removeConnectionsForPort(portId);
-          setConnectingPort({ nodeId, portId });
+          if (oppositePort) {
+            setConnectingPort(oppositePort);
+          } else {
+            setConnectingPort({ nodeId, portId });
+          }
           toast.info('Connection removed. Select another port to reconnect.');
           return;
         }
@@ -282,7 +303,15 @@ export default function Home() {
         setConnectingPort(null);
       }
     }
-  }, [toolMode, connectingPort, addConnection, getPortIoType, getConnectionForPort, removeConnectionsForPort]);
+  }, [
+    toolMode,
+    connectingPort,
+    addConnection,
+    getPortIoType,
+    getConnectionForPort,
+    getOppositePort,
+    removeConnectionsForPort,
+  ]);
 
   // Handle canvas click
   const handleCanvasClick = useCallback(() => {
