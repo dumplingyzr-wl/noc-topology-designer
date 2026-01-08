@@ -61,6 +61,7 @@ export default function Home() {
     deleteSelected,
     clearAll,
     exportTopology,
+    exportDrawio,
     importTopology,
     generateMeshTopology,
     generateButterflyTopology,
@@ -268,6 +269,18 @@ export default function Home() {
     toast.success('Topology exported');
   }, [exportTopology]);
 
+  const handleExportDrawio = useCallback(() => {
+    const xml = exportDrawio();
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'noc-topology.drawio';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Draw.io file exported');
+  }, [exportDrawio]);
+
   // Import topology
   const handleImport = useCallback(() => {
     fileInputRef.current?.click();
@@ -406,6 +419,7 @@ export default function Home() {
         onZoomOut={handleZoomOut}
         onZoomFit={handleZoomFit}
         onExport={handleExport}
+        onExportDrawio={handleExportDrawio}
         onImport={handleImport}
         onGenerateMesh={() => setShowMeshDialog(true)}
         onGenerateButterfly={() => setShowButterflyDialog(true)}
