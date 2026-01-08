@@ -158,6 +158,7 @@ export function NocCanvas({
   const [isDragging, setIsDragging] = useState(false);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragStartPositions = useRef<Map<string, { x: number; y: number }> | null>(null);
   const [resizeNodeId, setResizeNodeId] = useState<string | null>(null);
   const [resizeOrigin, setResizeOrigin] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
@@ -244,7 +245,18 @@ export function NocCanvas({
         newY = Math.round(newY / settings.gridSize) * settings.gridSize;
       }
       
-      onNodeMove(dragNodeId, newX, newY);
+      const startPositions = dragStartPositions.current;
+      if (startPositions && startPositions.has(dragNodeId)) {
+        const origin = startPositions.get(dragNodeId);
+        if (!origin) return;
+        const deltaX = newX - origin.x;
+        const deltaY = newY - origin.y;
+        startPositions.forEach((position, nodeId) => {
+          onNodeMove(nodeId, position.x + deltaX, position.y + deltaY);
+        });
+      } else {
+        onNodeMove(dragNodeId, newX, newY);
+      }
     } else if (resizeNodeId) {
       const deltaX = canvasPos.x - resizeOrigin.x;
       const deltaY = canvasPos.y - resizeOrigin.y;
@@ -268,6 +280,7 @@ export function NocCanvas({
     if (isDragging) {
       setIsDragging(false);
       setDragNodeId(null);
+      dragStartPositions.current = null;
       onNodeMoveEnd();
     }
     if (resizeNodeId) {
@@ -288,9 +301,19 @@ export function NocCanvas({
     setDragOffset({ x: canvasPos.x - node.x, y: canvasPos.y - node.y });
     setIsDragging(true);
     setDragNodeId(nodeId);
+
+    if (selectedNodes.includes(nodeId) && selectedNodes.length > 1) {
+      dragStartPositions.current = new Map(
+        nodes
+          .filter(item => selectedNodes.includes(item.id))
+          .map(item => [item.id, { x: item.x, y: item.y }])
+      );
+    } else {
+      dragStartPositions.current = new Map([[nodeId, { x: node.x, y: node.y }]]);
+    }
     
     onNodeSelect(nodeId, e.shiftKey || e.ctrlKey);
-  }, [toolMode, nodes, screenToCanvas, onNodeSelect]);
+  }, [toolMode, nodes, screenToCanvas, onNodeSelect, selectedNodes]);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
     if (toolMode !== 'select') return;
