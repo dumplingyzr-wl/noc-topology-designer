@@ -119,38 +119,15 @@ function generateConnectionPath(
   routingMode: 'bezier' | 'orthogonal' | 'straight',
   bundleOffset: number = 0
 ): string {
-  // Apply bundle offset perpendicular to the connection direction
-  const dx = target.x - source.x;
-  const dy = target.y - source.y;
-  const len = Math.sqrt(dx * dx + dy * dy);
-  
-  if (len === 0) return '';
-  
-  // Perpendicular unit vector
-  const px = -dy / len;
-  const py = dx / len;
-  
-  const adjustedSource = {
-    ...source,
-    x: source.x + px * bundleOffset,
-    y: source.y + py * bundleOffset,
-  };
-  
-  const adjustedTarget = {
-    ...target,
-    x: target.x + px * bundleOffset,
-    y: target.y + py * bundleOffset,
-  };
-  
   switch (routingMode) {
     case 'bezier':
-      return generateBezierPath(adjustedSource, adjustedTarget);
+      return generateBezierPath(source, target, bundleOffset);
     case 'orthogonal':
-      return generateOrthogonalPath(adjustedSource, adjustedTarget, [], []);
+      return generateOrthogonalPath(source, target, [], [], bundleOffset);
     case 'straight':
-      return generateStraightPath(adjustedSource, adjustedTarget);
+      return generateStraightPath(source, target, bundleOffset);
     default:
-      return generateBezierPath(adjustedSource, adjustedTarget);
+      return generateBezierPath(source, target, bundleOffset);
   }
 }
 
