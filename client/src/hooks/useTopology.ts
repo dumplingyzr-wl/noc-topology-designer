@@ -15,6 +15,7 @@ import {
   Port,
   PortConfig,
   PortDirection,
+  PortIOType,
   DEFAULT_PORT_CONFIG,
   CanvasSettings,
   DEFAULT_CANVAS_SETTINGS,
@@ -533,10 +534,24 @@ export function useTopology() {
             ioType: port.ioType ?? PORT_IO_TYPE_BY_DIRECTION[port.direction],
           })),
         }));
+        const portIoTypeMap = new Map<string, PortIOType>();
+        normalizedNodes.forEach(node => {
+          node.ports.forEach(port => {
+            portIoTypeMap.set(port.id, port.ioType ?? PORT_IO_TYPE_BY_DIRECTION[port.direction]);
+          });
+        });
+        const filteredConnections = data.connections.filter((connection: Connection) => {
+          const sourceType = portIoTypeMap.get(connection.sourcePortId);
+          const targetType = portIoTypeMap.get(connection.targetPortId);
+          if (!sourceType || !targetType) {
+            return false;
+          }
+          return sourceType !== targetType;
+        });
         const newState = {
           ...state,
           nodes: normalizedNodes,
-          connections: data.connections,
+          connections: filteredConnections,
           selection: { selectedNodes: [], selectedConnections: [], selectedPorts: [] },
         };
         setState(newState);
