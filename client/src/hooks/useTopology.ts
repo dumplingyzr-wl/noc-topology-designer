@@ -18,6 +18,7 @@ import {
   CanvasSettings,
   DEFAULT_CANVAS_SETTINGS,
 } from '@/types/noc';
+import { buildDrawioXml } from '@/lib/drawio';
 
 // Generate ports for a router based on configuration
 function generatePorts(config: PortConfig): Port[] {
@@ -316,6 +317,10 @@ export function useTopology() {
       nodes: state.nodes,
       connections: state.connections,
     }, null, 2);
+  }, [state.nodes, state.connections]);
+
+  const exportDrawio = useCallback(() => {
+    return buildDrawioXml(state.nodes, state.connections);
   }, [state.nodes, state.connections]);
 
   // Import topology from JSON
@@ -680,6 +685,7 @@ export function useTopology() {
     
     // Import/Export
     exportTopology,
+    exportDrawio,
     importTopology,
     
     // Generators

@@ -53,6 +53,7 @@ interface ToolbarProps {
   onZoomOut: () => void;
   onZoomFit: () => void;
   onExport: () => void;
+  onExportDrawio: () => void;
   onImport: () => void;
   onGenerateMesh: () => void;
   onGenerateButterfly: () => void;
@@ -110,6 +111,7 @@ export function Toolbar({
   onZoomOut,
   onZoomFit,
   onExport,
+  onExportDrawio,
   onImport,
   onGenerateMesh,
   onGenerateButterfly,
@@ -287,6 +289,10 @@ export function Toolbar({
           <DropdownMenuItem onClick={onExport}>
             <Download className="h-4 w-4 mr-2" />
             Export JSON
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onExportDrawio}>
+            <Download className="h-4 w-4 mr-2" />
+            Export Draw.io
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onImport}>
             <Upload className="h-4 w-4 mr-2" />
