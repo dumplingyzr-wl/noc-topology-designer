@@ -216,10 +216,8 @@
   
   .noc-port {
     @apply transition-transform duration-100;
-  }
-  
-  .noc-port:hover {
-    transform: scale(1.3);
+    transform-box: fill-box;
+    transform-origin: center;
   }
 }
 
