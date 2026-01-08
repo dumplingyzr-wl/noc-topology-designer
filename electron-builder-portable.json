@@ -1,0 +1,17 @@
+{
+  "appId": "com.nocdesigner.app",
+  "productName": "NoC Topology Designer",
+  "files": [
+    "dist-electron",
+    "dist",
+    "node_modules"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ]
+  }
+}
