@@ -1,0 +1,269 @@
+/*
+ * Properties Panel Component - Edit selected node/connection properties
+ * Design: Dark Professional
+ */
+
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { RouterNode, Connection, PortConfig, CONNECTION_COLORS, PORT_DIRECTION_COLORS } from '@/types/noc';
+import { X, Router, Cable, Plus, Minus, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface PropertiesPanelProps {
+  selectedNodes: RouterNode[];
+  selectedConnections: Connection[];
+  onUpdateNode: (nodeId: string, updates: Partial<RouterNode>) => void;
+  onDeleteNode: (nodeId: string) => void;
+  onUpdateConnection?: (connectionId: string, updates: Partial<Connection>) => void;
+  onDeleteConnection: (connectionId: string) => void;
+  onClose: () => void;
+}
+
+export function PropertiesPanel({
+  selectedNodes,
+  selectedConnections,
+  onUpdateNode,
+  onDeleteNode,
+  onDeleteConnection,
+  onClose,
+}: PropertiesPanelProps) {
+  const [nodeLabel, setNodeLabel] = useState('');
+  const [nodeX, setNodeX] = useState('');
+  const [nodeY, setNodeY] = useState('');
+  
+  // Update form when selection changes
+  useEffect(() => {
+    if (selectedNodes.length === 1) {
+      const node = selectedNodes[0];
+      setNodeLabel(node.label);
+      setNodeX(String(Math.round(node.x)));
+      setNodeY(String(Math.round(node.y)));
+    }
+  }, [selectedNodes]);
+
+  const handleNodeLabelChange = () => {
+    if (selectedNodes.length === 1 && nodeLabel.trim()) {
+      onUpdateNode(selectedNodes[0].id, { label: nodeLabel.trim() });
+    }
+  };
+
+  const handleNodePositionChange = () => {
+    if (selectedNodes.length === 1) {
+      const x = parseInt(nodeX);
+      const y = parseInt(nodeY);
+      if (!isNaN(x) && !isNaN(y)) {
+        onUpdateNode(selectedNodes[0].id, { x, y });
+      }
+    }
+  };
+
+  const isEmpty = selectedNodes.length === 0 && selectedConnections.length === 0;
+
+  if (isEmpty) {
+    return (
+      <div className="w-72 bg-card border-l border-border flex flex-col">
+        <div className="flex items-center justify-between p-3 border-b border-border">
+          <h3 className="text-sm font-medium">Properties</h3>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <p className="text-sm text-muted-foreground text-center">
+            Select a node or connection to view its properties
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-72 bg-card border-l border-border flex flex-col">
+      <div className="flex items-center justify-between p-3 border-b border-border">
+        <h3 className="text-sm font-medium">Properties</h3>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-4">
+          {/* Node properties */}
+          {selectedNodes.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Router className="h-4 w-4" />
+                <span>
+                  {selectedNodes.length === 1 
+                    ? 'Router Node' 
+                    : `${selectedNodes.length} Nodes Selected`}
+                </span>
+              </div>
+              
+              {selectedNodes.length === 1 && (
+                <>
+                  {/* Label */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Label</Label>
+                    <Input
+                      value={nodeLabel}
+                      onChange={(e) => setNodeLabel(e.target.value)}
+                      onBlur={handleNodeLabelChange}
+                      onKeyDown={(e) => e.key === 'Enter' && handleNodeLabelChange()}
+                      className="h-8 text-sm font-mono"
+                    />
+                  </div>
+                  
+                  {/* Position */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">X Position</Label>
+                      <Input
+                        type="number"
+                        value={nodeX}
+                        onChange={(e) => setNodeX(e.target.value)}
+                        onBlur={handleNodePositionChange}
+                        onKeyDown={(e) => e.key === 'Enter' && handleNodePositionChange()}
+                        className="h-8 text-sm font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Y Position</Label>
+                      <Input
+                        type="number"
+                        value={nodeY}
+                        onChange={(e) => setNodeY(e.target.value)}
+                        onBlur={handleNodePositionChange}
+                        onKeyDown={(e) => e.key === 'Enter' && handleNodePositionChange()}
+                        className="h-8 text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Size (read-only) */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Width</Label>
+                      <div className="h-8 px-3 flex items-center text-sm font-mono bg-secondary/50 rounded-md">
+                        {selectedNodes[0].width}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Height</Label>
+                      <div className="h-8 px-3 flex items-center text-sm font-mono bg-secondary/50 rounded-md">
+                        {selectedNodes[0].height}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  {/* Ports */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Ports ({selectedNodes[0].ports.length})</Label>
+                    <div className="space-y-1">
+                      {(['north', 'south', 'east', 'west', 'local'] as const).map(direction => {
+                        const ports = selectedNodes[0].ports.filter(p => p.direction === direction);
+                        if (ports.length === 0) return null;
+                        
+                        return (
+                          <div key={direction} className="flex items-center gap-2 text-xs">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: PORT_DIRECTION_COLORS[direction] }}
+                            />
+                            <span className="capitalize text-muted-foreground w-12">{direction}</span>
+                            <span className="font-mono">{ports.length}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {/* Delete button */}
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-full"
+                onClick={() => selectedNodes.forEach(n => onDeleteNode(n.id))}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete {selectedNodes.length > 1 ? 'Nodes' : 'Node'}
+              </Button>
+            </div>
+          )}
+          
+          {selectedNodes.length > 0 && selectedConnections.length > 0 && (
+            <Separator />
+          )}
+          
+          {/* Connection properties */}
+          {selectedConnections.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Cable className="h-4 w-4" />
+                <span>
+                  {selectedConnections.length === 1 
+                    ? 'Connection' 
+                    : `${selectedConnections.length} Connections Selected`}
+                </span>
+              </div>
+              
+              {selectedConnections.length === 1 && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Type</Label>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-4 h-1 rounded"
+                        style={{ backgroundColor: CONNECTION_COLORS[selectedConnections[0].type || 'data'] }}
+                      />
+                      <span className="text-sm capitalize">{selectedConnections[0].type || 'data'}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Source</Label>
+                    <div className="text-sm font-mono bg-secondary/50 rounded-md px-2 py-1">
+                      {selectedConnections[0].sourceNodeId.slice(0, 8)}...
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Target</Label>
+                    <div className="text-sm font-mono bg-secondary/50 rounded-md px-2 py-1">
+                      {selectedConnections[0].targetNodeId.slice(0, 8)}...
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-full"
+                onClick={() => selectedConnections.forEach(c => onDeleteConnection(c.id))}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete {selectedConnections.length > 1 ? 'Connections' : 'Connection'}
+              </Button>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
