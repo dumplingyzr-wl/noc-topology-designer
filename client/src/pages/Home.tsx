@@ -85,6 +85,7 @@ export default function Home() {
   const [connectingPort, setConnectingPort] = useState<{ nodeId: string; portId: string } | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
   const [copiedNodes, setCopiedNodes] = useState<RouterNode[]>([]);
+  const pendingPasteLabelsRef = useRef<string[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
@@ -149,18 +150,34 @@ export default function Home() {
         e.preventDefault();
         if (copiedNodes.length > 0) {
           let firstLabel = '';
+          const existingLabels = new Set(nodes.map(node => node.label));
+          const labels = copiedNodes.map(node => {
+            let candidate = `${node.label}-copy`;
+            if (!existingLabels.has(candidate)) {
+              existingLabels.add(candidate);
+              return candidate;
+            }
+            let index = 2;
+            while (existingLabels.has(`${node.label}-copy-${index}`)) {
+              index += 1;
+            }
+            candidate = `${node.label}-copy-${index}`;
+            existingLabels.add(candidate);
+            return candidate;
+          });
           copiedNodes.forEach((node, index) => {
-            const label = getUniqueLabel(node.label);
+            const label = labels[index];
             if (index === 0) {
               firstLabel = label;
             }
             duplicateNode(
               node,
-              node.x + 40 + index * 10,
-              node.y + 40 + index * 10,
+              node.x + 40,
+              node.y + 40,
               label
             );
           });
+          pendingPasteLabelsRef.current = labels;
           toast.success(
             copiedNodes.length > 1
               ? `${copiedNodes.length} routers pasted`
@@ -203,6 +220,22 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setToolMode, selection, deleteSelected, clearSelection, undo, redo, nodes, copiedNodes, duplicateNode, getUniqueLabel]);
+
+  useEffect(() => {
+    if (!pendingPasteLabelsRef.current) {
+      return;
+    }
+    const pendingLabels = pendingPasteLabelsRef.current;
+    const newIds = nodes.filter(node => pendingLabels.includes(node.label)).map(node => node.id);
+    if (newIds.length === pendingLabels.length) {
+      setSelection({
+        selectedNodes: newIds,
+        selectedConnections: [],
+        selectedPorts: [],
+      });
+      pendingPasteLabelsRef.current = null;
+    }
+  }, [nodes, setSelection]);
 
   // Handle node selection
   const handleNodeSelect = useCallback((nodeId: string, addToSelection: boolean) => {
