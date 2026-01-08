@@ -27,6 +27,7 @@ interface NocCanvasProps {
   onNodeResize: (nodeId: string, width: number, height: number) => void;
   onNodeResizeEnd: () => void;
   onNodeSelect: (nodeId: string, addToSelection: boolean) => void;
+  onNodesSelect: (nodeIds: string[], addToSelection: boolean) => void;
   onConnectionSelect: (connectionId: string, addToSelection: boolean) => void;
   onPortClick: (nodeId: string, portId: string) => void;
   onCanvasClick: () => void;
@@ -147,6 +148,7 @@ export function NocCanvas({
   onNodeResize,
   onNodeResizeEnd,
   onNodeSelect,
+  onNodesSelect,
   onConnectionSelect,
   onPortClick,
   onCanvasClick,
@@ -164,6 +166,10 @@ export function NocCanvas({
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hoveredPort, setHoveredPort] = useState<{ nodeId: string; portId: string } | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 });
+  const [selectionCurrent, setSelectionCurrent] = useState({ x: 0, y: 0 });
+  const [selectionAdditive, setSelectionAdditive] = useState(false);
   const connectingPortType = useMemo(() => {
     if (!connectingPort) return null;
     const node = nodes.find(item => item.id === connectingPort.nodeId);
@@ -221,6 +227,14 @@ export function NocCanvas({
       // Click on empty canvas - clear selection (but not when clicking on ports)
       const target = e.target as HTMLElement;
       if (target.classList.contains('noc-canvas-bg') || target.tagName === 'rect') {
+        if (toolMode === 'select') {
+          const pos = screenToCanvas(e.clientX, e.clientY);
+          setIsSelecting(true);
+          setSelectionStart(pos);
+          setSelectionCurrent(pos);
+          setSelectionAdditive(e.shiftKey || e.ctrlKey || e.metaKey);
+          return;
+        }
         onCanvasClick();
       }
     }
@@ -230,7 +244,7 @@ export function NocCanvas({
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const canvasPos = screenToCanvas(e.clientX, e.clientY);
     setMousePos(canvasPos);
-    
+
     if (isPanning) {
       onViewportChange({
         x: e.clientX - panStart.x,
@@ -239,12 +253,12 @@ export function NocCanvas({
     } else if (isDragging && dragNodeId) {
       let newX = canvasPos.x - dragOffset.x;
       let newY = canvasPos.y - dragOffset.y;
-      
+
       if (settings.snapToGrid) {
         newX = Math.round(newX / settings.gridSize) * settings.gridSize;
         newY = Math.round(newY / settings.gridSize) * settings.gridSize;
       }
-      
+
       const startPositions = dragStartPositions.current;
       if (startPositions && startPositions.has(dragNodeId)) {
         const origin = startPositions.get(dragNodeId);
@@ -269,8 +283,24 @@ export function NocCanvas({
       nextWidth = Math.max(40, nextWidth);
       nextHeight = Math.max(40, nextHeight);
       onNodeResize(resizeNodeId, nextWidth, nextHeight);
+    } else if (isSelecting) {
+      setSelectionCurrent(canvasPos);
     }
-  }, [isPanning, isDragging, dragNodeId, dragOffset, panStart, screenToCanvas, settings, onViewportChange, onNodeMove, resizeNodeId, resizeOrigin, onNodeResize]);
+  }, [
+    isPanning,
+    isDragging,
+    dragNodeId,
+    dragOffset,
+    panStart,
+    screenToCanvas,
+    settings,
+    onViewportChange,
+    onNodeMove,
+    resizeNodeId,
+    resizeOrigin,
+    onNodeResize,
+    isSelecting,
+  ]);
 
   // Handle mouse up
   const handleMouseUp = useCallback(() => {
@@ -287,7 +317,47 @@ export function NocCanvas({
       setResizeNodeId(null);
       onNodeResizeEnd();
     }
-  }, [isPanning, isDragging, resizeNodeId, onNodeMoveEnd, onNodeResizeEnd]);
+    if (isSelecting) {
+      const minX = Math.min(selectionStart.x, selectionCurrent.x);
+      const maxX = Math.max(selectionStart.x, selectionCurrent.x);
+      const minY = Math.min(selectionStart.y, selectionCurrent.y);
+      const maxY = Math.max(selectionStart.y, selectionCurrent.y);
+      const width = maxX - minX;
+      const height = maxY - minY;
+      if (width < 5 && height < 5) {
+        if (!selectionAdditive) {
+          onCanvasClick();
+        }
+      } else {
+        const selected = nodes
+          .filter(node =>
+            node.x <= maxX &&
+            node.x + node.width >= minX &&
+            node.y <= maxY &&
+            node.y + node.height >= minY
+          )
+          .map(node => node.id);
+        onNodesSelect(selected, selectionAdditive);
+      }
+      setIsSelecting(false);
+      setSelectionAdditive(false);
+    }
+  }, [
+    isPanning,
+    isDragging,
+    resizeNodeId,
+    onNodeMoveEnd,
+    onNodeResizeEnd,
+    isSelecting,
+    selectionStart.x,
+    selectionStart.y,
+    selectionCurrent.x,
+    selectionCurrent.y,
+    selectionAdditive,
+    nodes,
+    onNodesSelect,
+    onCanvasClick,
+  ]);
 
   // Handle node mouse down
   const handleNodeMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
@@ -488,6 +558,17 @@ export function NocCanvas({
         
         {/* Transform group for zoom and pan */}
         <g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}>
+          {isSelecting && (
+            <rect
+              x={Math.min(selectionStart.x, selectionCurrent.x)}
+              y={Math.min(selectionStart.y, selectionCurrent.y)}
+              width={Math.abs(selectionCurrent.x - selectionStart.x)}
+              height={Math.abs(selectionCurrent.y - selectionStart.y)}
+              fill="rgba(34,211,238,0.12)"
+              stroke="rgba(34,211,238,0.8)"
+              strokeDasharray="4,3"
+            />
+          )}
           {/* Connections */}
           {connections.map(conn => {
             const sourcePos = getPortPos(conn.sourceNodeId, conn.sourcePortId);

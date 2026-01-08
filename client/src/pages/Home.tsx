@@ -195,8 +195,28 @@ export default function Home() {
           : [...selection.selectedNodes, nodeId],
       });
     } else {
+      if (selection.selectedNodes.includes(nodeId)) {
+        return;
+      }
       setSelection({
         selectedNodes: [nodeId],
+        selectedConnections: [],
+        selectedPorts: [],
+      });
+    }
+  }, [selection.selectedNodes, setSelection]);
+
+  const handleNodesSelect = useCallback((nodeIds: string[], addToSelection: boolean) => {
+    if (addToSelection) {
+      const merged = Array.from(new Set([...selection.selectedNodes, ...nodeIds]));
+      setSelection({
+        selectedNodes: merged,
+        selectedConnections: [],
+        selectedPorts: [],
+      });
+    } else {
+      setSelection({
+        selectedNodes: nodeIds,
         selectedConnections: [],
         selectedPorts: [],
       });
@@ -561,6 +581,7 @@ export default function Home() {
             onNodeResize={updateNodeSize}
             onNodeResizeEnd={finalizeNodeSize}
             onNodeSelect={handleNodeSelect}
+            onNodesSelect={handleNodesSelect}
             onConnectionSelect={handleConnectionSelect}
             onPortClick={handlePortClick}
             onCanvasClick={handleCanvasClick}
