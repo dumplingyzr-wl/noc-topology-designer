@@ -129,3 +129,39 @@ This tool was designed to address the limitations of general-purpose diagram too
 - Limited anchor points for high-radix routers
 - Poor connection routing optimization for dense interconnects
 - Lack of NoC-specific features like mesh generation
+
+
+## Building Windows EXE
+
+To create a standalone Windows executable:
+
+```bash
+# Option 1: Using the build script (Linux/macOS)
+./build-windows-exe.sh
+
+# Option 2: Manual build
+pnpm run build
+npx esbuild electron/main.ts --bundle --platform=node --target=node20 --outfile=dist-electron/main.js --external:electron
+npx electron-builder --win --publish never
+```
+
+The executable will be generated in `dist/win-unpacked/NoC Topology Designer.exe` (approximately 202MB).
+
+**Note**: Building Windows EXE requires either:
+- Running on Windows, or
+- Using Wine on Linux/macOS (for NSIS installer generation)
+
+For the portable EXE, you can build on any platform.
+
+### Running the Windows EXE
+
+1. Copy the entire `dist/win-unpacked` directory to your Windows machine
+2. Double-click `NoC Topology Designer.exe` to launch
+3. No installation required - it runs directly as a portable application
+
+### System Requirements
+
+- Windows 10 or later
+- 4GB RAM minimum
+- 8GB RAM recommended
+- 500MB disk space
