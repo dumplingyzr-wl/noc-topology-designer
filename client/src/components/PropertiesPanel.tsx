@@ -199,32 +199,6 @@ export function PropertiesPanel({
                     </div>
                   </div>
 
-                  {/* Theme presets */}
-                  <div className="space-y-2">
-                    <Label className="text-xs">Theme Presets</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {ROUTER_THEME_PRESETS.map(theme => (
-                        <button
-                          key={theme.name}
-                          type="button"
-                          className="h-7 w-10 rounded-md border border-border shadow-sm text-[9px] font-semibold"
-                          style={{ backgroundColor: theme.fill, color: theme.text }}
-                          onClick={() => selectedNodes.forEach(node => onUpdateNode(node.id, { color: theme.fill, textColor: theme.text }))}
-                          aria-label={`Set router theme to ${theme.name}`}
-                        >
-                          {theme.name}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="h-7 px-2 rounded-md border border-border text-[10px] text-muted-foreground"
-                        onClick={() => selectedNodes.forEach(node => onUpdateNode(node.id, { color: undefined, textColor: undefined }))}
-                      >
-                        Reset
-                      </button>
-                    </div>
-                  </div>
-                  
                   <Separator />
                   
                   {/* Ports */}
@@ -270,6 +244,32 @@ export function PropertiesPanel({
                   </div>
                 </>
               )}
+
+              {/* Theme presets */}
+              <div className="space-y-2">
+                <Label className="text-xs">Theme Presets</Label>
+                <div className="flex flex-wrap gap-2">
+                  {ROUTER_THEME_PRESETS.map(theme => (
+                    <button
+                      key={theme.name}
+                      type="button"
+                      className="h-7 w-10 rounded-md border border-border shadow-sm text-[9px] font-semibold"
+                      style={{ backgroundColor: theme.fill, color: theme.text }}
+                      onClick={() => selectedNodes.forEach(node => onUpdateNode(node.id, { color: theme.fill, textColor: theme.text }))}
+                      aria-label={`Set router theme to ${theme.name}`}
+                    >
+                      {theme.name}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="h-7 px-2 rounded-md border border-border text-[10px] text-muted-foreground"
+                    onClick={() => selectedNodes.forEach(node => onUpdateNode(node.id, { color: undefined, textColor: undefined }))}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
               
               {/* Delete button */}
               <Button
