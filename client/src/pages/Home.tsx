@@ -14,6 +14,7 @@ import { NocCanvas } from '@/components/NocCanvas';
 import { Toolbar } from '@/components/Toolbar';
 import { PropertiesPanel } from '@/components/PropertiesPanel';
 import { MeshDialog } from '@/components/MeshDialog';
+import { ButterflyDialog } from '@/components/ButterflyDialog';
 import { AddRouterDialog } from '@/components/AddRouterDialog';
 import { Minimap } from '@/components/Minimap';
 import { HelpPanel } from '@/components/HelpPanel';
@@ -62,11 +63,14 @@ export default function Home() {
     exportTopology,
     importTopology,
     generateMeshTopology,
+    generateButterflyTopology,
+    generateClosTopology,
   } = useTopology();
 
   const [showProperties, setShowProperties] = useState(true);
   const [showMinimap, setShowMinimap] = useState(true);
   const [showMeshDialog, setShowMeshDialog] = useState(false);
+  const [showButterflyDialog, setShowButterflyDialog] = useState(false);
   const [showAddRouterDialog, setShowAddRouterDialog] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -296,6 +300,20 @@ export default function Home() {
     setTimeout(handleZoomFit, 100);
   }, [generateMeshTopology, handleZoomFit]);
 
+  // Generate butterfly
+  const handleGenerateButterfly = useCallback((radix: number, stages: number) => {
+    generateButterflyTopology(radix, stages);
+    toast.success(`Generated ${radix}-ary ${stages}-fly butterfly topology`);
+    setTimeout(handleZoomFit, 100);
+  }, [generateButterflyTopology, handleZoomFit]);
+
+  // Generate Clos
+  const handleGenerateClos = useCallback((n: number, m: number, r: number) => {
+    generateClosTopology(n, m, r);
+    toast.success(`Generated Clos(${n}, ${m}, ${r}) topology`);
+    setTimeout(handleZoomFit, 100);
+  }, [generateClosTopology, handleZoomFit]);
+
   // Clear all confirmation
   const handleClearAll = useCallback(() => {
     setShowClearConfirm(true);
@@ -390,6 +408,7 @@ export default function Home() {
         onExport={handleExport}
         onImport={handleImport}
         onGenerateMesh={() => setShowMeshDialog(true)}
+        onGenerateButterfly={() => setShowButterflyDialog(true)}
         onClearAll={handleClearAll}
       />
 
@@ -473,6 +492,13 @@ export default function Home() {
         open={showMeshDialog}
         onOpenChange={setShowMeshDialog}
         onGenerate={handleGenerateMesh}
+      />
+
+      <ButterflyDialog
+        open={showButterflyDialog}
+        onOpenChange={setShowButterflyDialog}
+        onGenerateButterfly={handleGenerateButterfly}
+        onGenerateClos={handleGenerateClos}
       />
 
       <AddRouterDialog

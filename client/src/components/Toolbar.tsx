@@ -55,6 +55,7 @@ interface ToolbarProps {
   onExport: () => void;
   onImport: () => void;
   onGenerateMesh: () => void;
+  onGenerateButterfly: () => void;
   onClearAll: () => void;
 }
 
@@ -111,6 +112,7 @@ export function Toolbar({
   onExport,
   onImport,
   onGenerateMesh,
+  onGenerateButterfly,
   onClearAll,
 }: ToolbarProps) {
   const routingModeIcons: Record<RoutingMode, React.ReactNode> = {
@@ -265,6 +267,10 @@ export function Toolbar({
           <DropdownMenuItem onClick={onGenerateMesh}>
             <LayoutGrid className="h-4 w-4 mr-2" />
             Mesh Topology...
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onGenerateButterfly}>
+            <Cable className="h-4 w-4 mr-2" />
+            Butterfly / Clos...
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

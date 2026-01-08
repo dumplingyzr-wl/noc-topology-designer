@@ -416,6 +416,225 @@ export function useTopology() {
     saveToHistory(newState);
   }, [saveToHistory, state]);
 
+  // Generate Butterfly topology (k-ary n-fly)
+  const generateButterflyTopology = useCallback((radix: number, stages: number) => {
+    const nodes: RouterNode[] = [];
+    const connections: Connection[] = [];
+    const switchesPerStage = Math.pow(radix, stages - 1);
+    const horizontalSpacing = 250;
+    const verticalSpacing = 100;
+    const startX = 100;
+    const startY = 100;
+
+    // Create port config for butterfly switches
+    const portConfig: PortConfig = {
+      north: 0,
+      south: 0,
+      east: radix,
+      west: radix,
+      local: 0,
+    };
+
+    // Create nodes for each stage
+    for (let stage = 0; stage < stages; stage++) {
+      for (let sw = 0; sw < switchesPerStage; sw++) {
+        const node = createRouterNode(
+          startX + stage * horizontalSpacing,
+          startY + sw * verticalSpacing,
+          `S${stage}_${sw}`,
+          portConfig
+        );
+        node.meshX = stage;
+        node.meshY = sw;
+        nodes.push(node);
+      }
+    }
+
+    // Create butterfly connections
+    // In a k-ary n-fly, switch (stage, sw) connects to:
+    // - Stage stage+1, switch with different digit in position (stages-1-stage)
+    for (let stage = 0; stage < stages - 1; stage++) {
+      for (let sw = 0; sw < switchesPerStage; sw++) {
+        const currentNodeIndex = stage * switchesPerStage + sw;
+        const currentNode = nodes[currentNodeIndex];
+
+        // Calculate connections based on butterfly pattern
+        const digitPosition = stages - 1 - stage;
+        const stride = Math.pow(radix, digitPosition);
+        const groupStart = Math.floor(sw / (stride * radix)) * (stride * radix);
+        const posInGroup = sw % stride;
+
+        for (let k = 0; k < radix; k++) {
+          const targetSw = groupStart + k * stride + posInGroup;
+          const targetNodeIndex = (stage + 1) * switchesPerStage + targetSw;
+          const targetNode = nodes[targetNodeIndex];
+
+          if (targetNode) {
+            const sourcePort = currentNode.ports.filter(p => p.direction === 'east')[k];
+            const targetPort = targetNode.ports.filter(p => p.direction === 'west')[k];
+
+            if (sourcePort && targetPort) {
+              connections.push({
+                id: nanoid(8),
+                sourceNodeId: currentNode.id,
+                sourcePortId: sourcePort.id,
+                targetNodeId: targetNode.id,
+                targetPortId: targetPort.id,
+                type: 'data',
+              });
+            }
+          }
+        }
+      }
+    }
+
+    const newState = {
+      ...state,
+      nodes,
+      connections,
+      selection: { selectedNodes: [], selectedConnections: [], selectedPorts: [] },
+    };
+    setState(newState);
+    saveToHistory(newState);
+  }, [saveToHistory, state]);
+
+  // Generate Clos topology (n, m, r)
+  // n = ports per edge switch, m = middle switches, r = edge switches per stage
+  const generateClosTopology = useCallback((n: number, m: number, r: number) => {
+    const nodes: RouterNode[] = [];
+    const connections: Connection[] = [];
+    const stageSpacing = 300;
+    const switchSpacing = 120;
+    const startX = 100;
+    const startY = 100;
+
+    // Input stage port config: n west ports (inputs), m east ports (to middle)
+    const inputPortConfig: PortConfig = {
+      north: 0,
+      south: 0,
+      east: m,
+      west: n,
+      local: 0,
+    };
+
+    // Middle stage port config: r west ports (from input), r east ports (to output)
+    const middlePortConfig: PortConfig = {
+      north: 0,
+      south: 0,
+      east: r,
+      west: r,
+      local: 0,
+    };
+
+    // Output stage port config: m west ports (from middle), n east ports (outputs)
+    const outputPortConfig: PortConfig = {
+      north: 0,
+      south: 0,
+      east: n,
+      west: m,
+      local: 0,
+    };
+
+    // Calculate vertical centering
+    const inputHeight = r * switchSpacing;
+    const middleHeight = m * switchSpacing;
+    const maxHeight = Math.max(inputHeight, middleHeight);
+    const inputOffset = (maxHeight - inputHeight) / 2;
+    const middleOffset = (maxHeight - middleHeight) / 2;
+
+    // Create input stage switches
+    for (let i = 0; i < r; i++) {
+      const node = createRouterNode(
+        startX,
+        startY + inputOffset + i * switchSpacing,
+        `I${i}`,
+        inputPortConfig
+      );
+      node.meshX = 0;
+      node.meshY = i;
+      nodes.push(node);
+    }
+
+    // Create middle stage switches
+    for (let i = 0; i < m; i++) {
+      const node = createRouterNode(
+        startX + stageSpacing,
+        startY + middleOffset + i * switchSpacing,
+        `M${i}`,
+        middlePortConfig
+      );
+      node.meshX = 1;
+      node.meshY = i;
+      nodes.push(node);
+    }
+
+    // Create output stage switches
+    for (let i = 0; i < r; i++) {
+      const node = createRouterNode(
+        startX + stageSpacing * 2,
+        startY + inputOffset + i * switchSpacing,
+        `O${i}`,
+        outputPortConfig
+      );
+      node.meshX = 2;
+      node.meshY = i;
+      nodes.push(node);
+    }
+
+    // Connect input stage to middle stage
+    // Each input switch connects to all middle switches
+    for (let i = 0; i < r; i++) {
+      const inputNode = nodes[i];
+      for (let j = 0; j < m; j++) {
+        const middleNode = nodes[r + j];
+        const sourcePort = inputNode.ports.filter(p => p.direction === 'east')[j];
+        const targetPort = middleNode.ports.filter(p => p.direction === 'west')[i];
+
+        if (sourcePort && targetPort) {
+          connections.push({
+            id: nanoid(8),
+            sourceNodeId: inputNode.id,
+            sourcePortId: sourcePort.id,
+            targetNodeId: middleNode.id,
+            targetPortId: targetPort.id,
+            type: 'data',
+          });
+        }
+      }
+    }
+
+    // Connect middle stage to output stage
+    // Each middle switch connects to all output switches
+    for (let j = 0; j < m; j++) {
+      const middleNode = nodes[r + j];
+      for (let k = 0; k < r; k++) {
+        const outputNode = nodes[r + m + k];
+        const sourcePort = middleNode.ports.filter(p => p.direction === 'east')[k];
+        const targetPort = outputNode.ports.filter(p => p.direction === 'west')[j];
+
+        if (sourcePort && targetPort) {
+          connections.push({
+            id: nanoid(8),
+            sourceNodeId: middleNode.id,
+            sourcePortId: sourcePort.id,
+            targetNodeId: outputNode.id,
+            targetPortId: targetPort.id,
+            type: 'data',
+          });
+        }
+      }
+    }
+
+    const newState = {
+      ...state,
+      nodes,
+      connections,
+      selection: { selectedNodes: [], selectedConnections: [], selectedPorts: [] },
+    };
+    setState(newState);
+    saveToHistory(newState);
+  }, [saveToHistory, state]);
+
   return {
     // State
     nodes: state.nodes,
@@ -465,5 +684,7 @@ export function useTopology() {
     
     // Generators
     generateMeshTopology,
+    generateButterflyTopology,
+    generateClosTopology,
   };
 }

@@ -226,9 +226,10 @@ export function NocCanvas({
         pos.y = Math.round(pos.y / settings.gridSize) * settings.gridSize;
       }
       onAddNode(pos.x, pos.y);
-    } else if (e.button === 0 && toolMode === 'select') {
-      // Click on empty canvas - clear selection
-      if ((e.target as HTMLElement).classList.contains('noc-canvas-bg')) {
+    } else if (e.button === 0 && (toolMode === 'select' || toolMode === 'connect')) {
+      // Click on empty canvas - clear selection (but not when clicking on ports)
+      const target = e.target as HTMLElement;
+      if (target.classList.contains('noc-canvas-bg') || target.tagName === 'rect') {
         onCanvasClick();
       }
     }
@@ -635,17 +636,18 @@ export function NocCanvas({
                     <g 
                       key={port.id} 
                       className="noc-port"
+                      style={{ cursor: 'pointer' }}
                       onMouseEnter={() => setHoveredPort({ nodeId: node.id, portId: port.id })}
                       onMouseLeave={() => setHoveredPort(null)}
+                      onClick={(e) => handlePortClick(e, node.id, port.id)}
                     >
-                      {/* Port hit area */}
+                      {/* Port hit area - larger invisible circle for easier clicking */}
                       <circle
                         cx={pos.x}
                         cy={pos.y}
-                        r={12}
-                        fill="transparent"
+                        r={14}
+                        fill="rgba(0,0,0,0.01)"
                         style={{ cursor: 'pointer' }}
-                        onClick={(e) => handlePortClick(e, node.id, port.id)}
                       />
                       
                       {/* Port glow when hovering or can connect */}
@@ -656,6 +658,7 @@ export function NocCanvas({
                           r={10}
                           fill={color}
                           opacity={isConnecting ? 0.4 : 0.2}
+                          pointerEvents="none"
                         />
                       )}
                       
@@ -667,8 +670,7 @@ export function NocCanvas({
                         fill="#1a1a1a"
                         stroke={color}
                         strokeWidth={isConnecting ? 2.5 : 2}
-                        onClick={(e) => handlePortClick(e, node.id, port.id)}
-                        style={{ cursor: 'pointer' }}
+                        pointerEvents="none"
                       />
                       
                       {/* Port inner dot */}
@@ -678,6 +680,7 @@ export function NocCanvas({
                           cy={pos.y}
                           r={2}
                           fill={color}
+                          pointerEvents="none"
                         />
                       )}
                       
