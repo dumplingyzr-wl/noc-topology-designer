@@ -177,8 +177,24 @@ export function useTopology() {
     });
   }, []);
 
+  const updateNodeSize = useCallback((nodeId: string, width: number, height: number) => {
+    setState(prev => {
+      const newState = {
+        ...prev,
+        nodes: prev.nodes.map(node =>
+          node.id === nodeId ? { ...node, width, height } : node
+        ),
+      };
+      return newState;
+    });
+  }, []);
+
   // Finalize node position (save to history)
   const finalizeNodePosition = useCallback(() => {
+    saveToHistory(state);
+  }, [saveToHistory, state]);
+
+  const finalizeNodeSize = useCallback(() => {
     saveToHistory(state);
   }, [saveToHistory, state]);
 
@@ -354,6 +370,7 @@ export function useTopology() {
             color: sourceNode.color,
             width: sourceNode.width,
             height: sourceNode.height,
+            textColor: sourceNode.textColor,
           },
         ],
       };
@@ -824,7 +841,9 @@ export function useTopology() {
     addNode,
     duplicateNode,
     updateNodePosition,
+    updateNodeSize,
     finalizeNodePosition,
+    finalizeNodeSize,
     updateNode,
     deleteNode,
     addPort,

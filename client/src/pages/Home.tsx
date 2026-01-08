@@ -49,7 +49,9 @@ export default function Home() {
     addNode,
     duplicateNode,
     updateNodePosition,
+    updateNodeSize,
     finalizeNodePosition,
+    finalizeNodeSize,
     updateNode,
     deleteNode,
     addPort,
@@ -509,6 +511,8 @@ export default function Home() {
             onViewportChange={updateViewport}
             onNodeMove={updateNodePosition}
             onNodeMoveEnd={finalizeNodePosition}
+            onNodeResize={updateNodeSize}
+            onNodeResizeEnd={finalizeNodeSize}
             onNodeSelect={handleNodeSelect}
             onConnectionSelect={handleConnectionSelect}
             onPortClick={handlePortClick}

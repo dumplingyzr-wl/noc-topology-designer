@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RouterNode, Connection, PortConfig, CONNECTION_COLORS, PORT_DIRECTION_COLORS, ROUTER_COLOR_PRESETS } from '@/types/noc';
+import { RouterNode, Connection, PortConfig, CONNECTION_COLORS, PORT_DIRECTION_COLORS, ROUTER_THEME_PRESETS } from '@/types/noc';
 import { X, Router, Cable, Plus, Minus, Trash2 } from 'lucide-react';
 
 type PortConfigKey = keyof PortConfig;
@@ -199,24 +199,26 @@ export function PropertiesPanel({
                     </div>
                   </div>
 
-                  {/* Color presets */}
+                  {/* Theme presets */}
                   <div className="space-y-2">
-                    <Label className="text-xs">Color Presets</Label>
+                    <Label className="text-xs">Theme Presets</Label>
                     <div className="flex flex-wrap gap-2">
-                      {ROUTER_COLOR_PRESETS.map(color => (
+                      {ROUTER_THEME_PRESETS.map(theme => (
                         <button
-                          key={color}
+                          key={theme.name}
                           type="button"
-                          className="h-6 w-6 rounded-md border border-border shadow-sm"
-                          style={{ backgroundColor: color }}
-                          onClick={() => selectedNodes.forEach(node => onUpdateNode(node.id, { color }))}
-                          aria-label={`Set router color to ${color}`}
-                        />
+                          className="h-7 w-10 rounded-md border border-border shadow-sm text-[9px] font-semibold"
+                          style={{ backgroundColor: theme.fill, color: theme.text }}
+                          onClick={() => selectedNodes.forEach(node => onUpdateNode(node.id, { color: theme.fill, textColor: theme.text }))}
+                          aria-label={`Set router theme to ${theme.name}`}
+                        >
+                          {theme.name}
+                        </button>
                       ))}
                       <button
                         type="button"
-                        className="h-6 px-2 rounded-md border border-border text-[10px] text-muted-foreground"
-                        onClick={() => selectedNodes.forEach(node => onUpdateNode(node.id, { color: undefined }))}
+                        className="h-7 px-2 rounded-md border border-border text-[10px] text-muted-foreground"
+                        onClick={() => selectedNodes.forEach(node => onUpdateNode(node.id, { color: undefined, textColor: undefined }))}
                       >
                         Reset
                       </button>

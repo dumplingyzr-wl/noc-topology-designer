@@ -15,6 +15,9 @@ function buildNodeStyle(node: RouterNode) {
   if (node.color) {
     styles.push(`fillColor=${node.color}`);
   }
+  if (node.textColor) {
+    styles.push(`fontColor=${node.textColor}`);
+  }
   return styles.join(';');
 }
 

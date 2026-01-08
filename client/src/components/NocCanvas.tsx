@@ -24,6 +24,8 @@ interface NocCanvasProps {
   onViewportChange: (viewport: Partial<ViewportState>) => void;
   onNodeMove: (nodeId: string, x: number, y: number) => void;
   onNodeMoveEnd: () => void;
+  onNodeResize: (nodeId: string, width: number, height: number) => void;
+  onNodeResizeEnd: () => void;
   onNodeSelect: (nodeId: string, addToSelection: boolean) => void;
   onConnectionSelect: (connectionId: string, addToSelection: boolean) => void;
   onPortClick: (nodeId: string, portId: string) => void;
@@ -142,6 +144,8 @@ export function NocCanvas({
   onViewportChange,
   onNodeMove,
   onNodeMoveEnd,
+  onNodeResize,
+  onNodeResizeEnd,
   onNodeSelect,
   onConnectionSelect,
   onPortClick,
@@ -154,6 +158,8 @@ export function NocCanvas({
   const [isDragging, setIsDragging] = useState(false);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [resizeNodeId, setResizeNodeId] = useState<string | null>(null);
+  const [resizeOrigin, setResizeOrigin] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hoveredPort, setHoveredPort] = useState<{ nodeId: string; portId: string } | null>(null);
@@ -239,8 +245,14 @@ export function NocCanvas({
       }
       
       onNodeMove(dragNodeId, newX, newY);
+    } else if (resizeNodeId) {
+      const deltaX = canvasPos.x - resizeOrigin.x;
+      const deltaY = canvasPos.y - resizeOrigin.y;
+      const nextWidth = Math.max(40, resizeOrigin.width + deltaX);
+      const nextHeight = Math.max(40, resizeOrigin.height + deltaY);
+      onNodeResize(resizeNodeId, nextWidth, nextHeight);
     }
-  }, [isPanning, isDragging, dragNodeId, dragOffset, panStart, screenToCanvas, settings, onViewportChange, onNodeMove]);
+  }, [isPanning, isDragging, dragNodeId, dragOffset, panStart, screenToCanvas, settings, onViewportChange, onNodeMove, resizeNodeId, resizeOrigin, onNodeResize]);
 
   // Handle mouse up
   const handleMouseUp = useCallback(() => {
@@ -252,7 +264,11 @@ export function NocCanvas({
       setDragNodeId(null);
       onNodeMoveEnd();
     }
-  }, [isPanning, isDragging, onNodeMoveEnd]);
+    if (resizeNodeId) {
+      setResizeNodeId(null);
+      onNodeResizeEnd();
+    }
+  }, [isPanning, isDragging, resizeNodeId, onNodeMoveEnd, onNodeResizeEnd]);
 
   // Handle node mouse down
   const handleNodeMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
@@ -268,6 +284,17 @@ export function NocCanvas({
     setDragNodeId(nodeId);
     
     onNodeSelect(nodeId, e.shiftKey || e.ctrlKey);
+  }, [toolMode, nodes, screenToCanvas, onNodeSelect]);
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
+    if (toolMode !== 'select') return;
+    e.stopPropagation();
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    const canvasPos = screenToCanvas(e.clientX, e.clientY);
+    setResizeOrigin({ x: canvasPos.x, y: canvasPos.y, width: node.width, height: node.height });
+    setResizeNodeId(nodeId);
+    onNodeSelect(nodeId, false);
   }, [toolMode, nodes, screenToCanvas, onNodeSelect]);
 
   // Handle port click
@@ -584,27 +611,13 @@ export function NocCanvas({
                   y={node.y + node.height / 2 - 2}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill="#e5e5e5"
+                  fill={node.textColor || '#e5e5e5'}
                   fontSize={13}
                   fontFamily="'JetBrains Mono', monospace"
                   fontWeight={600}
                   pointerEvents="none"
                 >
                   {node.label}
-                </text>
-                
-                {/* Port count indicator */}
-                <text
-                  x={node.x + node.width / 2}
-                  y={node.y + node.height / 2 + 12}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fill="#666"
-                  fontSize={9}
-                  fontFamily="'Inter', sans-serif"
-                  pointerEvents="none"
-                >
-                  {node.ports.length} ports
                 </text>
                 
                 {/* Ports */}
@@ -692,6 +705,25 @@ export function NocCanvas({
                     </g>
                   );
                 })}
+
+                {/* Resize handle */}
+                {toolMode === 'select' && (
+                  <g
+                    onMouseDown={(e) => handleResizeMouseDown(e, node.id)}
+                    style={{ cursor: 'nwse-resize' }}
+                  >
+                    <rect
+                      x={node.x + node.width - 10}
+                      y={node.y + node.height - 10}
+                      width={10}
+                      height={10}
+                      fill="rgba(34,211,238,0.9)"
+                      stroke="#0ea5e9"
+                      strokeWidth={1}
+                      rx={2}
+                    />
+                  </g>
+                )}
               </g>
             );
           })}

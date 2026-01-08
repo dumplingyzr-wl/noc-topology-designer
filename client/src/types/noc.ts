@@ -31,6 +31,7 @@ export interface RouterNode {
   meshY?: number;
   // Custom styling
   color?: string;
+  textColor?: string;
 }
 
 // Connection between two ports
@@ -153,13 +154,14 @@ export const PORT_DIRECTION_COLORS: Record<PortDirection, string> = {
   local: '#a78bfa',     // Purple (special)
 };
 
-export const ROUTER_COLOR_PRESETS = [
-  '#252525', // Default dark
-  '#dae8fc', // Draw.io light blue
-  '#d5e8d4', // Draw.io light green
-  '#fff2cc', // Draw.io light yellow
-  '#f8cecc', // Draw.io light red
-  '#e1d5e7', // Draw.io light purple
-  '#ffe6cc', // Draw.io light orange
-  '#cfe2f3', // Draw.io soft blue
+export const ROUTER_THEME_PRESETS = [
+  { fill: '#252525', text: '#f8fafc', name: 'Dark' },
+  { fill: '#dae8fc', text: '#1f2937', name: 'Light Blue' },
+  { fill: '#d5e8d4', text: '#1f2937', name: 'Light Green' },
+  { fill: '#fff2cc', text: '#1f2937', name: 'Light Yellow' },
+  { fill: '#f8cecc', text: '#1f2937', name: 'Light Red' },
+  { fill: '#e1d5e7', text: '#1f2937', name: 'Light Purple' },
+  { fill: '#ffe6cc', text: '#1f2937', name: 'Light Orange' },
+  { fill: '#cfe2f3', text: '#1f2937', name: 'Soft Blue' },
+  { fill: '#1f2937', text: '#f9fafb', name: 'Slate' },
 ];
